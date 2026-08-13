@@ -3,25 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kuriso's Vintage | Thrift Shop</title>
+    <title>Patch Archive | Vintage & Thrift Store</title>
     
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Playfair+Display:ital,wght@0,600;1,400&display=swap" rel="stylesheet">
+    <!-- Google Fonts & FontAwesome Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800;900&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
-        /* CSS Variables */
         :root {
-            --primary: #4A3E3D;
-            --accent: #8E6E53;
-            --bg: #F9F8F6;
-            --text-main: #2C2A29;
-            --text-light: #7A7571;
+            --primary-red: #E63946;
+            --bright-red: #FF2A2A;
+            --bg-dark: #0A0A0A;
+            --card-bg: #141414;
+            --card-border: #262626;
+            --text-main: #F5F5F5;
+            --text-muted: #888888;
             --white: #FFFFFF;
-            --danger: #B23A48;
+            --gold: #FFD700;
+            --danger: #FF3B30;
             --transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
         }
 
-        /* Reset & Base */
         * {
             margin: 0;
             padding: 0;
@@ -29,15 +31,18 @@
         }
 
         body {
-            font-family: 'Inter', sans-serif;
-            background-color: var(--bg);
+            font-family: 'Space Grotesk', sans-serif;
+            background-color: var(--bg-dark);
             color: var(--text-main);
             line-height: 1.6;
             overflow-x: hidden;
+            background-image: radial-gradient(circle at 50% 0%, rgba(230, 57, 70, 0.15), transparent 40%),
+                              repeating-radial-gradient(circle at 50% 50%, rgba(255,255,255,0.02) 0, rgba(255,255,255,0.02) 1px, transparent 1px, transparent 20px);
         }
 
         h1, h2, h3, .brand {
-            font-family: 'Playfair Display', serif;
+            font-family: 'Outfit', sans-serif;
+            text-transform: uppercase;
         }
 
         a {
@@ -57,7 +62,6 @@
             font-family: inherit;
         }
 
-        /* Utility Classes */
         .container {
             max-width: 1200px;
             margin: 0 auto;
@@ -65,45 +69,70 @@
         }
 
         .btn {
-            background-color: var(--primary);
+            background-color: var(--primary-red);
             color: var(--white);
-            padding: 12px 24px;
-            border-radius: 4px;
-            font-weight: 600;
+            padding: 10px 24px;
+            border-radius: 6px;
+            font-weight: 800;
             transition: var(--transition);
             text-transform: uppercase;
             letter-spacing: 1px;
             font-size: 0.85rem;
+            display: inline-block;
+            box-shadow: 0 4px 15px rgba(230, 57, 70, 0.3);
+            border: 1px solid var(--bright-red);
+            text-align: center;
         }
 
         .btn:hover {
-            background-color: var(--accent);
+            background-color: #ff1a1a;
             transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(230, 57, 70, 0.5);
         }
 
-        /* Admin Controls */
-        .admin-only {
-            display: none;
-            background-color: var(--accent);
-            color: white;
-            padding: 5px 10px;
+        .btn-gold {
+            background-color: var(--gold);
+            color: #000;
+            border: 1px solid #ffea75;
+            box-shadow: 0 4px 15px rgba(255, 215, 0, 0.3);
+        }
+
+        .btn-gold:hover {
+            background-color: #ffe033;
+            box-shadow: 0 8px 25px rgba(255, 215, 0, 0.5);
+        }
+
+        .btn-dark {
+            background-color: #222;
+            color: var(--white);
+            border: 1px solid var(--card-border);
+        }
+
+        .btn-dark:hover {
+            background-color: #333;
+        }
+
+        .btn-danger {
+            background-color: var(--danger);
+            color: var(--white);
+            border: 1px solid #ff6b6b;
+        }
+
+        .btn-danger:hover {
+            background-color: #d32f2f;
+        }
+
+        .btn-sm {
+            padding: 5px 12px;
             font-size: 0.75rem;
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            border-radius: 4px;
-            z-index: 10;
         }
 
-        body.admin-mode .admin-only {
-            display: block;
-        }
-
-        /* Header */
+        /* Navigation */
         header {
-            padding: 1.5rem 0;
-            border-bottom: 1px solid rgba(0,0,0,0.05);
-            background: var(--white);
+            padding: 1rem 0;
+            border-bottom: 1px solid var(--card-border);
+            background: rgba(10, 10, 10, 0.95);
+            backdrop-filter: blur(10px);
             position: sticky;
             top: 0;
             z-index: 100;
@@ -115,156 +144,394 @@
             align-items: center;
         }
 
-        .brand {
-            font-size: 1.8rem;
-            font-weight: 600;
-            color: var(--primary);
+        .brand-text {
+            font-size: 1.6rem;
+            font-weight: 900;
+            color: var(--white);
+            line-height: 1;
+        }
+
+        .brand-text span {
+            color: var(--primary-red);
+            display: block;
+            font-size: 0.65rem;
+            letter-spacing: 3px;
         }
 
         .nav-links {
             display: flex;
-            gap: 2rem;
+            gap: 1.5rem;
             align-items: center;
         }
 
         .nav-links a {
-            font-size: 0.9rem;
-            font-weight: 600;
+            font-size: 0.85rem;
+            font-weight: 700;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
+            letter-spacing: 1px;
             transition: var(--transition);
         }
 
         .nav-links a:hover {
-            color: var(--accent);
+            color: var(--primary-red);
         }
 
-        #admin-toggle {
-            font-size: 0.8rem;
-            color: var(--text-light);
-            border: 1px solid var(--text-light);
-            padding: 5px 10px;
+        .user-profile-badge {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: #1a1a1a;
+            padding: 6px 14px;
             border-radius: 20px;
+            border: 1px solid var(--card-border);
+            font-size: 0.85rem;
+            font-weight: 700;
         }
 
-        /* Hero Section */
+        .tag-mention {
+            color: var(--primary-red);
+            font-weight: 800;
+        }
+
+        /* Hero */
         .hero {
             text-align: center;
-            padding: 6rem 0;
-            background: linear-gradient(rgba(249, 248, 246, 0.9), rgba(249, 248, 246, 0.9)), url('https://images.unsplash.com/photo-1558769132-cb1fac0840c2?auto=format&fit=crop&q=80') center/cover;
+            padding: 5rem 0 3rem;
         }
 
         .hero h1 {
             font-size: 4rem;
+            color: var(--white);
+            font-weight: 900;
+            line-height: 1;
             margin-bottom: 1rem;
-            color: var(--primary);
+        }
+
+        .hero h1 span {
+            color: var(--primary-red);
         }
 
         .hero p {
-            font-size: 1.2rem;
-            color: var(--text-light);
-            max-width: 600px;
+            color: var(--text-muted);
+            max-width: 550px;
             margin: 0 auto 2rem;
         }
 
-        /* Product Grid */
-        .products {
-            padding: 5rem 0;
+        /* Categories Section */
+        .category-bar {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 2.5rem;
         }
 
-        .section-title {
+        .cat-btn {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            color: var(--text-muted);
+            padding: 8px 18px;
+            border-radius: 20px;
+            font-weight: 700;
+            font-size: 0.8rem;
+            transition: var(--transition);
+            text-transform: uppercase;
+        }
+
+        .cat-btn:hover, .cat-btn.active {
+            background: var(--primary-red);
+            color: var(--white);
+            border-color: var(--bright-red);
+        }
+
+        /* Grid & Cards */
+        .section-header {
             text-align: center;
-            font-size: 2.5rem;
-            margin-bottom: 3rem;
-            color: var(--primary);
+            margin-bottom: 2.5rem;
+        }
+
+        .section-header h2 {
+            font-size: 2.2rem;
+            color: var(--white);
+        }
+
+        .section-header p {
+            color: var(--text-muted);
+            font-size: 0.9rem;
         }
 
         .grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 2.5rem;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 1.8rem;
         }
 
         .product-card {
-            background: var(--white);
-            border-radius: 8px;
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 10px;
             overflow: hidden;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.03);
             transition: var(--transition);
             position: relative;
             cursor: pointer;
         }
 
         .product-card:hover {
-            transform: translateY(-8px);
-            box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+            transform: translateY(-5px);
+            border-color: var(--primary-red);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.5);
         }
 
         .product-img-wrapper {
             position: relative;
             aspect-ratio: 3/4;
             overflow: hidden;
+            background: #000;
         }
 
         .product-img-wrapper img {
             width: 100%;
             height: 100%;
             object-fit: cover;
-            transition: transform 0.5s ease;
+            transition: var(--transition);
         }
 
         .product-card:hover .product-img-wrapper img {
             transform: scale(1.05);
         }
 
+        /* Sold Out Badge overlay */
+        .sold-out-overlay {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2;
+        }
+
+        .sold-out-badge {
+            background: var(--danger);
+            color: var(--white);
+            font-weight: 900;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            box-shadow: 0 4px 15px rgba(255, 59, 48, 0.5);
+            transform: rotate(-5deg);
+        }
+
         .product-info {
-            padding: 1.5rem;
-            text-align: center;
+            padding: 1rem;
         }
 
         .product-title {
-            font-weight: 600;
+            font-weight: 700;
+            font-size: 1rem;
+            color: var(--white);
+            margin-bottom: 0.3rem;
+        }
+
+        .product-category-tag {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            letter-spacing: 1px;
+            display: block;
             margin-bottom: 0.5rem;
         }
 
         .product-price {
-            color: var(--accent);
-            font-weight: 600;
+            color: var(--primary-red);
+            font-weight: 800;
+            font-size: 1.1rem;
         }
 
-        /* Sold Out State */
-        .sold-out .product-img-wrapper::after {
-            content: '';
-            position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(255,255,255,0.5);
-            z-index: 1;
+        .product-card-tags {
+            display: flex;
+            gap: 6px;
+            margin-top: 8px;
         }
 
-        .sold-out img {
-            filter: grayscale(100%);
-        }
-
-        .sold-badge {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: var(--danger);
-            color: var(--white);
-            padding: 8px 20px;
-            font-weight: 600;
-            letter-spacing: 2px;
-            z-index: 2;
-            text-transform: uppercase;
+        .mini-badge {
+            font-size: 0.65rem;
+            background: #222;
+            padding: 2px 6px;
             border-radius: 4px;
+            color: var(--text-muted);
+            border: 1px solid #333;
         }
 
-        /* Modal / Magnifying Glass Overview */
+        /* Bidding Section */
+        .bidding-card {
+            border-color: var(--gold);
+            background: linear-gradient(180deg, #18160c 0%, #141414 100%);
+            cursor: default;
+        }
+
+        .bid-badge {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: var(--gold);
+            color: #000;
+            padding: 4px 10px;
+            font-size: 0.7rem;
+            font-weight: 900;
+            border-radius: 4px;
+            text-transform: uppercase;
+            z-index: 3;
+        }
+
+        .bid-info-box {
+            background: rgba(255, 215, 0, 0.08);
+            border: 1px solid rgba(255, 215, 0, 0.2);
+            padding: 10px;
+            border-radius: 6px;
+            margin: 10px 0;
+            font-size: 0.85rem;
+        }
+
+        .bid-user {
+            color: var(--gold);
+            font-weight: 800;
+        }
+
+        /* Receipts / Proof Section */
+        .receipt-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 10px;
+            overflow: hidden;
+            padding: 10px;
+        }
+
+        .receipt-img {
+            aspect-ratio: 1;
+            border-radius: 6px;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+
+        .receipt-img img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .receipt-meta {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .receipt-meta strong {
+            color: var(--white);
+            display: block;
+        }
+
+        /* Admin Manage Products List Item */
+        .manage-prod-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #181818;
+            border: 1px solid var(--card-border);
+            padding: 10px 14px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            gap: 12px;
+        }
+
+        .manage-prod-item img {
+            width: 48px;
+            height: 48px;
+            border-radius: 6px;
+            object-fit: cover;
+        }
+
+        .manage-prod-info {
+            flex-grow: 1;
+        }
+
+        .manage-prod-info strong {
+            display: block;
+            font-size: 0.9rem;
+            color: var(--white);
+        }
+
+        .manage-prod-info span {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .manage-prod-actions {
+            display: flex;
+            gap: 6px;
+        }
+
+        /* Connect Section */
+        .socials-grid {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin-top: 1.5rem;
+        }
+
+        .social-card {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            padding: 12px 24px;
+            border-radius: 8px;
+            color: var(--white);
+            font-weight: 700;
+            font-size: 0.9rem;
+            transition: var(--transition);
+        }
+
+        .social-card:hover {
+            transform: translateY(-3px);
+            border-color: var(--primary-red);
+            color: var(--primary-red);
+        }
+
+        /* Footer & Crown Admin */
+        footer {
+            padding: 2.5rem 0;
+            text-align: center;
+            border-top: 1px solid var(--card-border);
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            position: relative;
+        }
+
+        .admin-crown-btn {
+            font-size: 1.3rem;
+            color: var(--text-muted);
+            margin-left: 10px;
+            transition: var(--transition);
+            display: inline-block;
+            vertical-align: middle;
+        }
+
+        .admin-crown-btn:hover {
+            color: var(--gold);
+            transform: scale(1.2) rotate(10deg);
+            text-shadow: 0 0 10px rgba(255, 215, 0, 0.6);
+        }
+
+        /* Modals */
         .modal-overlay {
             position: fixed;
             top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.8);
+            background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(8px);
             z-index: 999;
             display: flex;
             justify-content: center;
@@ -272,7 +539,7 @@
             opacity: 0;
             pointer-events: none;
             transition: var(--transition);
-            padding: 2rem;
+            padding: 1.5rem;
         }
 
         .modal-overlay.active {
@@ -280,374 +547,1081 @@
             pointer-events: all;
         }
 
-        .modal-content {
-            background: var(--white);
+        .modal-box {
+            background: #141414;
+            border: 1px solid var(--card-border);
             border-radius: 12px;
             width: 100%;
-            max-width: 900px;
-            display: flex;
-            overflow: hidden;
+            max-width: 500px;
+            padding: 2rem;
             position: relative;
-            transform: scale(0.95);
-            transition: var(--transition);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.9);
         }
 
-        .modal-overlay.active .modal-content {
-            transform: scale(1);
+        .modal-box h3 {
+            font-size: 1.5rem;
+            margin-bottom: 1.2rem;
+            color: var(--white);
         }
 
         .close-modal {
             position: absolute;
             top: 15px;
             right: 20px;
-            font-size: 2rem;
-            color: var(--text-main);
-            z-index: 10;
+            font-size: 1.8rem;
+            color: var(--text-muted);
+            cursor: pointer;
         }
 
-        .modal-image-container {
-            width: 50%;
-            position: relative;
-            overflow: hidden;
-            background: #eee;
-            cursor: crosshair;
-        }
-
-        .modal-image-container img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            display: block;
-        }
-
-        /* Magnifier Effect */
-        .modal-image-container:hover img {
-            opacity: 0; /* Hide original image on hover */
-        }
-
-        .zoom-lens {
-            position: absolute;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            background-repeat: no-repeat;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.2s;
-        }
-
-        .modal-image-container:hover .zoom-lens {
-            opacity: 1;
-        }
-
-        .modal-details {
-            width: 50%;
-            padding: 3rem;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-        }
-
-        .modal-details h2 {
-            font-size: 2rem;
+        .form-group {
             margin-bottom: 1rem;
+            text-align: left;
         }
 
-        .modal-details .price {
-            font-size: 1.5rem;
-            color: var(--accent);
-            margin-bottom: 1.5rem;
+        .form-group label {
+            display: block;
+            font-size: 0.8rem;
+            font-weight: 700;
+            margin-bottom: 0.4rem;
+            color: var(--text-muted);
         }
 
-        .modal-details p {
-            color: var(--text-light);
-            margin-bottom: 2rem;
-        }
-
-        /* Map Section */
-        .map-section {
-            padding: 5rem 0;
-            background: var(--white);
-        }
-
-        .map-container {
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.05);
-            height: 400px;
-            position: relative;
-        }
-
-        .map-container iframe {
+        .form-group input, .form-group select, .form-group textarea {
             width: 100%;
-            height: 100%;
-            border: none;
+            padding: 10px 14px;
+            background: #1f1f1f;
+            border: 1px solid var(--card-border);
+            border-radius: 6px;
+            color: var(--white);
+            font-family: inherit;
         }
 
-        .map-overlay-card {
-            position: absolute;
-            bottom: 30px;
-            left: 30px;
-            background: var(--white);
-            padding: 1.5rem;
-            border-radius: 8px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            border-color: var(--primary-red);
+            outline: none;
         }
 
-        /* Scroll Animation Classes */
-        .fade-up {
-            opacity: 0;
-            transform: translateY(30px);
-            transition: opacity 0.8s ease-out, transform 0.8s ease-out;
+        .auth-tabs, .admin-subtabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 1.5rem;
+            border-bottom: 1px solid var(--card-border);
+            padding-bottom: 10px;
+            overflow-x: auto;
         }
 
-        .fade-up.visible {
-            opacity: 1;
-            transform: translateY(0);
+        .auth-tab, .admin-subtab {
+            font-weight: 700;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            padding-bottom: 5px;
+            white-space: nowrap;
         }
 
-        /* Responsive */
-        @media (max-width: 768px) {
-            .modal-content {
-                flex-direction: column;
-                max-height: 90vh;
-                overflow-y: auto;
+        .auth-tab.active, .admin-subtab.active {
+            color: var(--gold);
+            border-bottom: 2px solid var(--gold);
+        }
+
+        .detail-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            align-items: start;
+        }
+
+        @media (max-width: 600px) {
+            .detail-grid {
+                grid-template-columns: 1fr;
             }
-            .modal-image-container, .modal-details {
-                width: 100%;
-            }
-            .modal-image-container {
-                aspect-ratio: 1;
-            }
-            .hero h1 {
-                font-size: 3rem;
-            }
-            .nav-links {
-                display: none; /* In a full build, replace with a hamburger menu */
-            }
+        }
+
+        body.admin-mode .admin-indicator {
+            display: inline-block !important;
+        }
+
+        .admin-indicator {
+            display: none;
+            background: var(--gold);
+            color: #000;
+            font-size: 0.7rem;
+            font-weight: 800;
+            padding: 2px 8px;
+            border-radius: 10px;
+            margin-left: 8px;
         }
     </style>
 </head>
 <body>
 
-    <!-- Header -->
+    <!-- Navigation Header -->
     <header>
         <div class="container nav-inner">
-            <a href="#" class="brand">Kuriso's Vintage</a>
+            <a href="#" class="brand-text">
+                PATCH ARCHIVE
+                <span>THRIFT STORE <span class="admin-indicator">OWNER MODE</span></span>
+            </a>
             <nav class="nav-links">
                 <a href="#shop">Shop</a>
-                <a href="#visit">Location</a>
-                <button id="admin-toggle">Owner Login</button>
+                <a href="#bidding">Bidding</a>
+                <a href="#receipts">Proof of Purchase</a>
+                <a href="#connect">Connect</a>
+                
+                <div id="auth-nav-container"></div>
             </nav>
         </div>
     </header>
 
-    <!-- Hero -->
-    <section class="hero fade-up">
+    <!-- Hero Section -->
+    <section class="hero container">
+        <h1>PATCH <span>ARCHIVE</span></h1>
+        <p>Curated archive fashion, rare street vintage, and high-grade thrift drops.</p>
+    </section>
+
+    <!-- Shop Categories Section -->
+    <section id="shop" class="container" style="padding: 2rem 0 4rem;">
+        <div class="section-header">
+            <h2>Product Showcase</h2>
+            <p>Click on any piece to view full details, size, condition, and purchase info</p>
+        </div>
+
+        <div class="category-bar">
+            <button class="cat-btn active" onclick="filterCategory('all', this)">All Items</button>
+            <button class="cat-btn" onclick="filterCategory('vintage-shirts', this)">Vintage T-Shirts</button>
+            <button class="cat-btn" onclick="filterCategory('bags', this)">Bags</button>
+            <button class="cat-btn" onclick="filterCategory('womens', this)">Women's Wear</button>
+            <button class="cat-btn" onclick="filterCategory('jorts', this)">Jorts</button>
+            <button class="cat-btn" onclick="filterCategory('pants', this)">Pants</button>
+        </div>
+
+        <div class="grid" id="product-grid"></div>
+    </section>
+
+    <!-- Bidding Section -->
+    <section id="bidding" style="background: rgba(20,20,20,0.5); padding: 4rem 0; border-top: 1px solid var(--card-border); border-bottom: 1px solid var(--card-border);">
         <div class="container">
-            <h1>Curated Thrift Finds</h1>
-            <p>Hand-picked vintage and modern clothing pieces. Sustainable fashion with a story, sourced just for you.</p>
-            <a href="#shop" class="btn">Explore Collection</a>
+            <div class="section-header">
+                <h2 style="color: var(--gold);">✦ Live Bidding Lounge</h2>
+                <p>Place your offers directly with the owner for limited auction grails.</p>
+            </div>
+            <div class="grid" id="bidding-grid"></div>
         </div>
     </section>
 
-    <!-- Product Grid -->
-    <section id="shop" class="products container">
-        <h2 class="section-title fade-up">Latest Arrivals</h2>
-        
-        <div class="grid">
-            <!-- Product 1 -->
-            <div class="product-card fade-up" data-title="Vintage Denim Jacket" data-price="₱850" data-desc="Authentic 90s wash denim jacket. Boxy fit, perfectly worn-in with natural distressing along the collar and cuffs." data-img="https://images.unsplash.com/photo-1576995853123-5a10305d93c0?auto=format&fit=crop&q=80&w=800">
-                <button class="admin-only edit-btn">✎ Edit Product</button>
-                <div class="product-img-wrapper">
-                    <img src="https://images.unsplash.com/photo-1576995853123-5a10305d93c0?auto=format&fit=crop&q=80&w=600" alt="Vintage Denim Jacket">
-                </div>
-                <div class="product-info">
-                    <h3 class="product-title">Vintage Denim Jacket</h3>
-                    <p class="product-price">₱850</p>
-                </div>
-            </div>
+    <!-- Proof of Purchase / Receipts Section -->
+    <section id="receipts" class="container" style="padding: 4rem 0;">
+        <div class="section-header">
+            <h2>Proof of Purchase & Receipts</h2>
+            <p>100% Authentic transactions, satisfied buyers, and verified shipping receipts.</p>
+        </div>
+        <div class="grid" id="receipts-grid"></div>
+    </section>
 
-            <!-- Product 2 (Sold Out) -->
-            <div class="product-card sold-out fade-up" data-title="Corduroy Overshirt" data-price="₱650" data-desc="Earth-tone brown corduroy button-up. Ideal for layering over graphic tees." data-img="https://images.unsplash.com/photo-1595950653106-6c9ebd614d3a?auto=format&fit=crop&q=80&w=800">
-                <button class="admin-only edit-btn">✎ Edit Product</button>
-                <div class="product-img-wrapper">
-                    <div class="sold-badge">Sold Out</div>
-                    <img src="https://images.unsplash.com/photo-1595950653106-6c9ebd614d3a?auto=format&fit=crop&q=80&w=600" alt="Corduroy Overshirt">
-                </div>
-                <div class="product-info">
-                    <h3 class="product-title">Corduroy Overshirt</h3>
-                    <p class="product-price">₱650</p>
-                </div>
+    <!-- Connect Section -->
+    <section id="connect" style="background: rgba(15,15,15,0.8); padding: 4rem 0; border-top: 1px solid var(--card-border);">
+        <div class="container" style="text-align: center;">
+            <div class="section-header">
+                <h2>Connect & Order</h2>
+                <p>DM the owner directly on social media to claim pieces or submit bids.</p>
             </div>
-
-            <!-- Product 3 -->
-            <div class="product-card fade-up" data-title="Knit Grandpa Sweater" data-price="₱500" data-desc="Cozy, oversized knit sweater in cream and olive tones. Excellent condition, very soft material." data-img="https://images.unsplash.com/photo-1620799140408-edc6dcb6d633?auto=format&fit=crop&q=80&w=800">
-                <button class="admin-only edit-btn">✎ Edit Product</button>
-                <div class="product-img-wrapper">
-                    <img src="https://images.unsplash.com/photo-1620799140408-edc6dcb6d633?auto=format&fit=crop&q=80&w=600" alt="Knit Grandpa Sweater">
-                </div>
-                <div class="product-info">
-                    <h3 class="product-title">Knit Grandpa Sweater</h3>
-                    <p class="product-price">₱500</p>
-                </div>
-            </div>
-            
-            <!-- Product 4 -->
-            <div class="product-card fade-up" data-title="Classic Trench Coat" data-price="₱1,200" data-desc="Timeless beige trench coat. Features a belted waist and double-breasted front. Perfect for rainy days." data-img="https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&q=80&w=800">
-                <button class="admin-only edit-btn">✎ Edit Product</button>
-                <div class="product-img-wrapper">
-                    <img src="https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&q=80&w=600" alt="Classic Trench Coat">
-                </div>
-                <div class="product-info">
-                    <h3 class="product-title">Classic Trench Coat</h3>
-                    <p class="product-price">₱1,200</p>
-                </div>
+            <div class="socials-grid">
+                <a href="https://facebook.com" target="_blank" class="social-card">
+                    <i class="fab fa-facebook-f" style="color: #1877F2;"></i>
+                    <span>Facebook DM</span>
+                </a>
+                <a href="https://instagram.com" target="_blank" class="social-card">
+                    <i class="fab fa-instagram" style="color: #E4405F;"></i>
+                    <span>Instagram</span>
+                </a>
+                <a href="https://tiktok.com" target="_blank" class="social-card">
+                    <i class="fab fa-tiktok" style="color: #25F4EE;"></i>
+                    <span>TikTok</span>
+                </a>
+                <a href="mailto:patcharchive@gmail.com" class="social-card">
+                    <i class="fas fa-envelope" style="color: var(--primary-red);"></i>
+                    <span>Gmail Contact</span>
+                </a>
             </div>
         </div>
     </section>
 
-    <!-- Map Location -->
-    <section id="visit" class="map-section fade-up">
+    <!-- Footer with Crown Admin Button -->
+    <footer>
         <div class="container">
-            <h2 class="section-title">Visit the Rack</h2>
-            <div class="map-container">
-                <!-- Embedded Map focusing on Ivisan, Capiz -->
-                <iframe src="https://www.openstreetmap.org/export/embed.html?bbox=122.65171051025392%2C11.488346045435948%2C122.70990371704103%2C11.53676834162017&amp;layer=mapnik&amp;marker=11.5125%2C122.6808" title="Shop Location"></iframe>
-                <div class="map-overlay-card">
-                    <h3>Kuriso's Thrift HQ</h3>
-                    <p style="color: var(--text-light); margin-top: 5px;">Ivisan, Western Visayas<br>Philippines</p>
-                    <p style="margin-top: 10px; font-weight: 600;">Open Mon-Sat: 10am - 6pm</p>
-                </div>
-            </div>
+            <p>
+                &copy; 2026 Patch Archive Thrift Store. All rights reserved. 
+                <button class="admin-crown-btn" onclick="triggerAdminModal()" title="Owner Control Panel">👑</button>
+            </p>
         </div>
-    </section>
+    </footer>
 
-    <!-- Product Quick View Modal (Hidden by default) -->
-    <div class="modal-overlay" id="product-modal">
-        <div class="modal-content">
-            <button class="close-modal">&times;</button>
-            <div class="modal-image-container" id="zoom-container">
-                <img src="" alt="Product Detail" id="modal-img">
-                <div class="zoom-lens" id="zoom-lens"></div>
-            </div>
-            <div class="modal-details">
-                <button class="admin-only" style="position: relative; right: 0; top: 0; width: fit-content; margin-bottom: 1rem;">✎ Edit Details</button>
-                <h2 id="modal-title">Product Title</h2>
-                <div class="price" id="modal-price">₱0</div>
-                <p id="modal-desc">Product description goes here.</p>
-                <button class="btn" id="buy-btn">Add to Cart</button>
+    <!-- PRODUCT DETAIL FULL VIEW MODAL -->
+    <div class="modal-overlay" id="product-detail-modal">
+        <div class="modal-box" style="max-width: 750px;">
+            <span class="close-modal" onclick="closeModal('product-detail-modal')">&times;</span>
+            <div class="detail-grid">
+                <div style="border-radius: 8px; overflow: hidden; background:#000; border: 1px solid var(--card-border); position:relative;">
+                    <img id="detail-img" src="" alt="Product Preview" style="width:100%; aspect-ratio:3/4; object-fit:cover;">
+                    <div id="detail-sold-overlay" class="sold-out-overlay" style="display:none;">
+                        <span class="sold-out-badge">SOLD OUT</span>
+                    </div>
+                </div>
+                <div>
+                    <span id="detail-category" class="product-category-tag">CATEGORY</span>
+                    <h2 id="detail-title" style="color:var(--white); margin: 4px 0 10px; font-size: 1.6rem;">Product Title</h2>
+                    <div id="detail-price" style="color:var(--primary-red); font-size: 1.5rem; font-weight:800; margin-bottom: 15px;">₱0</div>
+                    
+                    <div style="display:flex; gap:10px; margin-bottom: 15px;">
+                        <span style="background:#222; padding:5px 12px; border-radius:6px; font-size:0.8rem; border:1px solid #333; color:var(--white)">
+                            Size: <strong id="detail-size" style="color:var(--gold)">L</strong>
+                        </span>
+                        <span style="background:#222; padding:5px 12px; border-radius:6px; font-size:0.8rem; border:1px solid #333; color:var(--white)">
+                            Condition: <strong id="detail-condition" style="color:var(--gold)">9/10 Vintage</strong>
+                        </span>
+                    </div>
+
+                    <div style="background:#181818; padding: 12px; border-radius:8px; border:1px solid #282828; margin-bottom: 20px;">
+                        <label style="display:block; font-size:0.75rem; color:var(--text-muted); font-weight:700; text-transform:uppercase; margin-bottom:5px;">Product Description</label>
+                        <p id="detail-desc" style="color:#ccc; font-size:0.88rem; white-space: pre-line; line-height:1.5;">No description provided.</p>
+                    </div>
+
+                    <div id="detail-action-container">
+                        <a href="https://facebook.com" id="detail-order-btn" target="_blank" class="btn" style="width:100%;">
+                            <i class="fab fa-facebook-f"></i> Message Owner to Order
+                        </a>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
-    <script>
-        // --- Scroll Animations (Intersection Observer) ---
-        const observerOptions = {
-            threshold: 0.1,
-            rootMargin: "0px 0px -50px 0px"
-        };
+    <!-- LOGIN / REGISTER MODAL -->
+    <div class="modal-overlay" id="auth-modal">
+        <div class="modal-box">
+            <span class="close-modal" onclick="closeModal('auth-modal')">&times;</span>
+            <div class="auth-tabs">
+                <button class="auth-tab active" id="tab-login" onclick="switchAuthTab('login')">Sign In</button>
+                <button class="auth-tab" id="tab-register" onclick="switchAuthTab('register')">Create Account</button>
+            </div>
 
-        const observer = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    entry.target.classList.add('visible');
-                    observer.unobserve(entry.target);
-                }
-            });
-        }, observerOptions);
+            <form id="login-form">
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" id="login-username" value="user" required>
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="login-password" value="12345678" required>
+                </div>
+                <button type="submit" class="btn" style="width: 100%; margin-top: 1rem;">Log In</button>
+            </form>
 
-        document.querySelectorAll('.fade-up').forEach(el => observer.observe(el));
+            <form id="register-form" style="display: none;">
+                <div class="form-group">
+                    <label>Display Name</label>
+                    <input type="text" id="reg-name" placeholder="e.g. Alex Thrift" required>
+                </div>
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" id="reg-username" placeholder="Choose username" required>
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="reg-password" placeholder="Choose password" required>
+                </div>
+                <button type="submit" class="btn" style="width: 100%; margin-top: 1rem;">Register Account</button>
+            </form>
+        </div>
+    </div>
 
-        // --- Admin/Owner Toggle ---
-        // Simulates an admin login that grants edit privileges to the owner
-        const adminBtn = document.getElementById('admin-toggle');
-        let isAdmin = false;
+    <!-- BID CONTACT POPUP MODAL -->
+    <div class="modal-overlay" id="bid-popup-modal">
+        <div class="modal-box" style="text-align: center;">
+            <span class="close-modal" onclick="closeModal('bid-popup-modal')">&times;</span>
+            <h3 style="color: var(--gold);">✦ Place Your Bid</h3>
+            <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.5rem;">
+                Send a Direct Message to the owner on Facebook with your bid amount and tag.
+            </p>
+            <div id="user-tag-display" style="background: #222; padding: 10px; border-radius: 6px; font-weight: 800; color: var(--gold); margin-bottom: 1.5rem;">
+                Your Tag: <span id="current-user-tag">@Guest</span>
+            </div>
+            <a href="https://facebook.com" target="_blank" class="btn btn-gold" style="width: 100%;">
+                <i class="fab fa-facebook-f"></i> Open Facebook Messenger
+            </a>
+        </div>
+    </div>
 
-        adminBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            isAdmin = !isAdmin;
-            document.body.classList.toggle('admin-mode', isAdmin);
-            adminBtn.textContent = isAdmin ? 'Exit Owner Mode' : 'Owner Login';
-            adminBtn.style.color = isAdmin ? 'var(--danger)' : '';
-            adminBtn.style.borderColor = isAdmin ? 'var(--danger)' : '';
-        });
+    <!-- ADMIN LOGIN MODAL -->
+    <div class="modal-overlay" id="admin-login-modal">
+        <div class="modal-box">
+            <span class="close-modal" onclick="closeModal('admin-login-modal')">&times;</span>
+            <h3 style="color: var(--gold);">👑 Owner Access</h3>
+            <form id="admin-login-form">
+                <div class="form-group">
+                    <label>Admin Username</label>
+                    <input type="text" id="admin-user-input" required>
+                </div>
+                <div class="form-group">
+                    <label>Admin Password</label>
+                    <input type="password" id="admin-pass-input" required>
+                </div>
+                <button type="submit" class="btn btn-gold" style="width: 100%; margin-top: 1rem;">Unlock Owner Panel</button>
+            </form>
+        </div>
+    </div>
 
-        // Prevent modal opening when clicking admin buttons
-        document.querySelectorAll('.admin-only').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                alert('Admin Control: This would open your database/backend editor to update product details.');
-            });
-        });
-
-        // --- Product Modal & Magnifying Glass Overview ---
-        const modal = document.getElementById('product-modal');
-        const closeBtn = document.querySelector('.close-modal');
-        const modalImg = document.getElementById('modal-img');
-        const zoomLens = document.getElementById('zoom-lens');
-        const modalTitle = document.getElementById('modal-title');
-        const modalPrice = document.getElementById('modal-price');
-        const modalDesc = document.getElementById('modal-desc');
-        const buyBtn = document.getElementById('buy-btn');
-        const zoomContainer = document.getElementById('zoom-container');
-
-        // Open Modal
-        document.querySelectorAll('.product-card').forEach(card => {
-            card.addEventListener('click', () => {
-                const title = card.getAttribute('data-title');
-                const price = card.getAttribute('data-price');
-                const desc = card.getAttribute('data-desc');
-                const imgSrc = card.getAttribute('data-img');
-                const isSoldOut = card.classList.contains('sold-out');
-
-                modalTitle.textContent = title;
-                modalPrice.textContent = price;
-                modalDesc.textContent = desc;
-                modalImg.src = imgSrc;
-                
-                // Setup the high-res zoom background
-                zoomLens.style.backgroundImage = `url(${imgSrc})`;
-                zoomLens.style.backgroundSize = '250%'; // Zoom level
-
-                if (isSoldOut) {
-                    buyBtn.textContent = 'Sold Out';
-                    buyBtn.style.backgroundColor = 'var(--text-light)';
-                    buyBtn.disabled = true;
-                } else {
-                    buyBtn.textContent = 'Secure This Item';
-                    buyBtn.style.backgroundColor = 'var(--primary)';
-                    buyBtn.disabled = false;
-                }
-
-                modal.classList.add('active');
-            });
-        });
-
-        // Close Modal
-        const closeModal = () => modal.classList.remove('active');
-        closeBtn.addEventListener('click', closeModal);
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) closeModal();
-        });
-
-        // Magnifying Glass Logic
-        zoomContainer.addEventListener('mousemove', (e) => {
-            const rect = zoomContainer.getBoundingClientRect();
-            const x = e.clientX - rect.left; // x position within the element
-            const y = e.clientY - rect.top;  // y position within the element
+    <!-- ADMIN CONTROL DASHBOARD MODAL -->
+    <div class="modal-overlay" id="admin-dashboard-modal">
+        <div class="modal-box" style="max-width: 650px; max-height: 90vh; overflow-y: auto;">
+            <span class="close-modal" onclick="closeModal('admin-dashboard-modal')">&times;</span>
+            <h3 style="color: var(--gold);"><i class="fas fa-crown"></i> Owner Control Panel</h3>
             
-            // Calculate percentages to map mouse position to background position
-            const xPercent = (x / rect.width) * 100;
-            const yPercent = (y / rect.height) * 100;
+            <!-- Sub-navigation tabs inside Admin Panel -->
+            <div class="admin-subtabs">
+                <button class="admin-subtab active" id="atab-add" onclick="switchAdminSubtab('add')"><i class="fas fa-plus-circle"></i> Add Item</button>
+                <button class="admin-subtab" id="atab-manage" onclick="switchAdminSubtab('manage')"><i class="fas fa-tasks"></i> Manage Shop</button>
+                <button class="admin-subtab" id="atab-edit" onclick="switchAdminSubtab('edit')" style="display:none;"><i class="fas fa-edit"></i> Edit Item</button>
+                <button class="admin-subtab" id="atab-bid" onclick="switchAdminSubtab('bid')"><i class="fas fa-gavel"></i> Bids</button>
+                <button class="admin-subtab" id="atab-rec" onclick="switchAdminSubtab('rec')"><i class="fas fa-receipt"></i> Receipts</button>
+                <button class="admin-subtab" id="atab-sec" onclick="switchAdminSubtab('sec')"><i class="fas fa-lock"></i> Security</button>
+            </div>
 
-            zoomLens.style.backgroundPosition = `${xPercent}% ${yPercent}%`;
+            <!-- Tab 1: Add New Product -->
+            <form id="admin-product-form" class="admin-tab-content">
+                <div class="form-group">
+                    <label>Product Title</label>
+                    <input type="text" id="prod-title" placeholder="e.g. 90s Metallica Tour Tee" required>
+                </div>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                    <div class="form-group">
+                        <label>Category</label>
+                        <select id="prod-category">
+                            <option value="vintage-shirts">Vintage T-Shirts</option>
+                            <option value="bags">Bags</option>
+                            <option value="womens">Women's Wear</option>
+                            <option value="jorts">Jorts</option>
+                            <option value="pants">Pants</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Price (₱)</label>
+                        <input type="number" id="prod-price" placeholder="1200" required>
+                    </div>
+                </div>
+
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                    <div class="form-group">
+                        <label>Size</label>
+                        <input type="text" id="prod-size" placeholder="e.g. Large / OS" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Condition</label>
+                        <input type="text" id="prod-condition" placeholder="e.g. 9/10 Excellent" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Image Input Method</label>
+                    <select id="prod-img-source" onchange="toggleImgSource()">
+                        <option value="url">Paste Image URL</option>
+                        <option value="file">Upload Local Image File</option>
+                    </select>
+                </div>
+
+                <div class="form-group" id="group-img-url">
+                    <label>Image URL</label>
+                    <input type="text" id="prod-img-url" placeholder="https://images.unsplash.com/...">
+                </div>
+
+                <div class="form-group" id="group-img-file" style="display:none;">
+                    <label>Upload File</label>
+                    <input type="file" id="prod-img-file" accept="image/*">
+                </div>
+
+                <div class="form-group">
+                    <label>Full Product Description & Details</label>
+                    <textarea id="prod-desc" rows="3" placeholder="Add fade details, chest measurements, stitch type, flaws, etc."></textarea>
+                </div>
+
+                <button type="submit" class="btn" style="width: 100%; margin-top: 5px;">Publish Product to Shop</button>
+            </form>
+
+            <!-- Tab 2: Manage Existing Products (Edit, Delete, Sold Out) -->
+            <div id="admin-manage-products" class="admin-tab-content" style="display:none;">
+                <p style="font-size:0.8rem; color:var(--text-muted); margin-bottom:12px;">Toggle sold-out status, edit product details, or delete items from your store.</p>
+                <div id="admin-product-list-container"></div>
+            </div>
+
+            <!-- Tab 3: Edit Item Form (Seamlessly inside Dashboard) -->
+            <form id="admin-edit-product-form" class="admin-tab-content" style="display:none;">
+                <input type="hidden" id="edit-prod-type"> <!-- 'product' or 'bid' -->
+                <input type="hidden" id="edit-prod-id">
+                <div class="form-group">
+                    <label>Product / Auction Title</label>
+                    <input type="text" id="edit-prod-title" required>
+                </div>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                    <div class="form-group">
+                        <label>Category</label>
+                        <select id="edit-prod-category">
+                            <option value="vintage-shirts">Vintage T-Shirts</option>
+                            <option value="bags">Bags</option>
+                            <option value="womens">Women's Wear</option>
+                            <option value="jorts">Jorts</option>
+                            <option value="pants">Pants</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Price / Bid (₱)</label>
+                        <input type="number" id="edit-prod-price" required>
+                    </div>
+                </div>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                    <div class="form-group">
+                        <label>Size</label>
+                        <input type="text" id="edit-prod-size" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Condition</label>
+                        <input type="text" id="edit-prod-condition" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Image URL</label>
+                    <input type="text" id="edit-prod-img" required>
+                </div>
+                <div class="form-group">
+                    <label>Product Description</label>
+                    <textarea id="edit-prod-desc" rows="3"></textarea>
+                </div>
+                <div style="display:flex; gap:10px;">
+                    <button type="button" class="btn btn-dark" style="width:50%;" onclick="switchAdminSubtab('manage')">Cancel</button>
+                    <button type="submit" class="btn btn-gold" style="width:50%;">Save Changes</button>
+                </div>
+            </form>
+
+            <!-- Tab 4: Update Bidding -->
+            <form id="admin-bid-form" class="admin-tab-content" style="display:none;">
+                <div class="form-group">
+                    <label>Select Active Auction Item</label>
+                    <select id="bid-item-select" onchange="loadSelectedBidData()"></select>
+                </div>
+                <div class="form-group">
+                    <label>Highest Bid Amount (₱)</label>
+                    <input type="number" id="bid-amount-input" required>
+                </div>
+                <div class="form-group">
+                    <label>Tag Highest Bidder (@User)</label>
+                    <select id="bid-user-select"></select>
+                </div>
+                <button type="submit" class="btn btn-gold" style="width: 100%;">Update Highest Bidder</button>
+            </form>
+
+            <!-- Tab 5: Receipts -->
+            <form id="admin-receipt-form" class="admin-tab-content" style="display:none;">
+                <div class="form-group">
+                    <label>Buyer Reference</label>
+                    <input type="text" id="receipt-buyer" placeholder="e.g. Juan D." required>
+                </div>
+                <div class="form-group">
+                    <label>Item Purchased</label>
+                    <input type="text" id="receipt-item" placeholder="e.g. Vintage Carhartt Jacket" required>
+                </div>
+                <div class="form-group">
+                    <label>Receipt Photo URL</label>
+                    <input type="text" id="receipt-img" required>
+                </div>
+                <button type="submit" class="btn" style="width: 100%;">Publish Receipt Proof</button>
+            </form>
+
+            <!-- Tab 6: Security -->
+            <form id="admin-creds-form" class="admin-tab-content" style="display:none;">
+                <div class="form-group">
+                    <label>New Admin Username</label>
+                    <input type="text" id="new-admin-user" required>
+                </div>
+                <div class="form-group">
+                    <label>New Admin Password</label>
+                    <input type="password" id="new-admin-pass" required>
+                </div>
+                <button type="submit" class="btn" style="background: var(--danger); border-color: var(--danger); width: 100%;">Update Admin Login Credentials</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        const defaultUsers = [
+            { id: "USR-001", username: "user", displayName: "Thrift Enthusiast", password: "12345678" }
+        ];
+
+        const defaultProducts = [
+            { id: 1, title: "90s Band Tour Vintage Tee", category: "vintage-shirts", price: 1200, size: "Large", condition: "9/10 Vintage", description: "Single stitch vintage tee with natural vintage fade. Super soft cotton.", img: "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&q=80&w=600", isSoldOut: false },
+            { id: 2, title: "Archive Canvas Utility Bag", category: "bags", price: 950, size: "One Size", condition: "10/10 Mint", description: "Heavyweight canvas archive shoulder bag with multiple tactical pockets.", img: "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&q=80&w=600", isSoldOut: false },
+            { id: 3, title: "Vintage Leather Biker Jacket", category: "womens", price: 1800, size: "Medium", condition: "8.5/10 Good", description: "Genuine heavy leather biker jacket with silver hardware detailing.", img: "https://images.unsplash.com/photo-1551028719-00167b16eac5?auto=format&fit=crop&q=80&w=600", isSoldOut: true },
+            { id: 4, title: "Distressed Denim Jorts", category: "jorts", price: 750, size: "32 Waist", condition: "9/10 Clean", description: "Custom raw hem baggy denim jorts with vintage wash.", img: "https://images.unsplash.com/photo-1591195853828-11db59a44f6b?auto=format&fit=crop&q=80&w=600", isSoldOut: false },
+            { id: 5, title: "Double Knee Work Pants", category: "pants", price: 1500, size: "34 Waist", condition: "9/10 Great", description: "Heavy duty workwear canvas pants with double reinforced knee panels.", img: "https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?auto=format&fit=crop&q=80&w=600", isSoldOut: false }
+        ];
+
+        const defaultBids = [
+            { id: 101, title: "1994 Rare Graphic Grail Tee", category: "vintage-shirts", price: 2400, startPrice: 1500, highestBid: 2400, highestBidderTag: "@USR-001", size: "Large", condition: "9/10 Rare", description: "Rare 1994 graphic grail tee up for live auction.", img: "https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?auto=format&fit=crop&q=80&w=600", isSoldOut: false },
+            { id: 102, title: "Japanese Denim Tactical Bag", category: "bags", price: 1800, startPrice: 1200, highestBid: 1800, highestBidderTag: "@USR-001", size: "OS", condition: "10/10 Mint", description: "Japanese tactical bag auction piece.", img: "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?auto=format&fit=crop&q=80&w=600", isSoldOut: false }
+        ];
+
+        const defaultReceipts = [
+            { id: 201, buyer: "Marco P.", item: "Vintage Harley Tee", date: "August 2026", img: "https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?auto=format&fit=crop&q=80&w=600" }
+        ];
+
+        let users = JSON.parse(localStorage.getItem('patch_users')) || defaultUsers;
+        let products = JSON.parse(localStorage.getItem('patch_products')) || defaultProducts;
+        let bids = JSON.parse(localStorage.getItem('patch_bids')) || defaultBids;
+        let receipts = JSON.parse(localStorage.getItem('patch_receipts')) || defaultReceipts;
+        let adminCreds = JSON.parse(localStorage.getItem('patch_admin_creds')) || { username: "admin", password: "123" };
+        let currentUser = JSON.parse(localStorage.getItem('patch_current_user')) || null;
+        let isAdmin = false;
+        let currentFilter = 'all';
+
+        function saveData() {
+            localStorage.setItem('patch_users', JSON.stringify(users));
+            localStorage.setItem('patch_products', JSON.stringify(products));
+            localStorage.setItem('patch_bids', JSON.stringify(bids));
+            localStorage.setItem('patch_receipts', JSON.stringify(receipts));
+            localStorage.setItem('patch_admin_creds', JSON.stringify(adminCreds));
+            localStorage.setItem('patch_current_user', JSON.stringify(currentUser));
+        }
+
+        // Render Navigation Auth Info
+        function renderAuthHeader() {
+            const container = document.getElementById('auth-nav-container');
+            if (currentUser) {
+                container.innerHTML = `
+                    <div class="user-profile-badge">
+                        <i class="fas fa-user-circle" style="color:var(--primary-red)"></i>
+                        <span>${currentUser.displayName} <span class="tag-mention">@${currentUser.id}</span></span>
+                        <button onclick="logoutUser()" style="color:var(--text-muted); margin-left:8px;" title="Logout"><i class="fas fa-sign-out-alt"></i></button>
+                    </div>
+                `;
+            } else {
+                container.innerHTML = `
+                    <button class="btn" onclick="openModal('auth-modal')">Log In / Sign Up</button>
+                `;
+            }
+        }
+
+        // Category Filtering
+        function filterCategory(cat, btn) {
+            currentFilter = cat;
+            document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+            if(btn) btn.classList.add('active');
+            renderProducts();
+        }
+
+        // Render Shop Products
+        function renderProducts() {
+            const grid = document.getElementById('product-grid');
+            grid.innerHTML = '';
+
+            const filtered = currentFilter === 'all' ? products : products.filter(p => p.category === currentFilter);
+
+            filtered.forEach(item => {
+                const soldOutOverlay = item.isSoldOut ? `
+                    <div class="sold-out-overlay">
+                        <span class="sold-out-badge">SOLD OUT</span>
+                    </div>` : '';
+
+                grid.innerHTML += `
+                    <div class="product-card" onclick="openProductDetail(${item.id})">
+                        <div class="product-img-wrapper">
+                            ${soldOutOverlay}
+                            <img src="${item.img}" alt="${item.title}">
+                        </div>
+                        <div class="product-info">
+                            <span class="product-category-tag">${item.category.replace('-', ' ')}</span>
+                            <h3 class="product-title">${item.title}</h3>
+                            <div class="product-price">₱${Number(item.price).toLocaleString()}</div>
+                            <div class="product-card-tags">
+                                <span class="mini-badge">Size: ${item.size || 'OS'}</span>
+                                <span class="mini-badge">${item.condition || 'Good'}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        // Open Detail Modal
+        function openProductDetail(id) {
+            const prod = products.find(p => Number(p.id) === Number(id));
+            if (!prod) return;
+
+            document.getElementById('detail-img').src = prod.img;
+            document.getElementById('detail-title').textContent = prod.title;
+            document.getElementById('detail-category').textContent = prod.category.replace('-', ' ');
+            document.getElementById('detail-price').textContent = `₱${Number(prod.price).toLocaleString()}`;
+            document.getElementById('detail-size').textContent = prod.size || 'OS';
+            document.getElementById('detail-condition').textContent = prod.condition || 'Vintage';
+            document.getElementById('detail-desc').textContent = prod.description || 'No detailed description available.';
+
+            const soldOverlay = document.getElementById('detail-sold-overlay');
+            const actionContainer = document.getElementById('detail-action-container');
+
+            if (prod.isSoldOut) {
+                soldOverlay.style.display = 'flex';
+                actionContainer.innerHTML = `
+                    <button class="btn btn-dark" style="width:100%; cursor:not-allowed;" disabled>
+                        ITEM SOLD OUT
+                    </button>`;
+            } else {
+                soldOverlay.style.display = 'none';
+                actionContainer.innerHTML = `
+                    <a href="https://facebook.com" target="_blank" class="btn" style="width:100%;">
+                        <i class="fab fa-facebook-f"></i> Message Owner to Order
+                    </a>`;
+            }
+
+            openModal('product-detail-modal');
+        }
+
+        // Render Bids (with Admin Controls if logged in as admin)
+        function renderBids() {
+            const grid = document.getElementById('bidding-grid');
+            grid.innerHTML = '';
+
+            bids.forEach(item => {
+                const soldOutOverlay = item.isSoldOut ? `
+                    <div class="sold-out-overlay">
+                        <span class="sold-out-badge">SOLD OUT</span>
+                    </div>` : '';
+
+                const adminActions = isAdmin ? `
+                    <div style="display:flex; gap:6px; margin-top:10px;">
+                        <button class="btn btn-sm ${item.isSoldOut ? 'btn-gold' : 'btn-dark'}" onclick="event.stopPropagation(); toggleBidSoldStatus(${item.id})">${item.isSoldOut ? 'Available' : 'Mark Sold'}</button>
+                        <button class="btn btn-sm btn-dark" onclick="event.stopPropagation(); openAdminEditItem('bid', ${item.id})"><i class="fas fa-edit"></i> Edit</button>
+                        <button class="btn btn-sm btn-danger" onclick="event.stopPropagation(); deleteBid(${item.id})"><i class="fas fa-trash"></i></button>
+                    </div>
+                ` : '';
+
+                grid.innerHTML += `
+                    <div class="product-card bidding-card">
+                        <div class="product-img-wrapper">
+                            ${soldOutOverlay}
+                            <div class="bid-badge">Active Auction</div>
+                            <img src="${item.img}" alt="${item.title}">
+                        </div>
+                        <div class="product-info">
+                            <h3 class="product-title">${item.title}</h3>
+                            <div class="bid-info-box">
+                                <div>Highest Bid: <strong style="color:var(--gold)">₱${Number(item.highestBid).toLocaleString()}</strong></div>
+                                <div>Bidder: <span class="bid-user">${item.highestBidderTag}</span></div>
+                            </div>
+                            <button class="btn btn-gold" style="width:100%; margin-bottom:${isAdmin ? '8px' : '0'}" onclick="triggerBidProcess(${item.id})">Place Bid / Offer</button>
+                            ${adminActions}
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        // Render Receipts
+        function renderReceipts() {
+            const grid = document.getElementById('receipts-grid');
+            grid.innerHTML = '';
+
+            receipts.forEach(r => {
+                grid.innerHTML += `
+                    <div class="receipt-card">
+                        <div class="receipt-img">
+                            <img src="${r.img}" alt="Receipt Proof">
+                        </div>
+                        <div class="receipt-meta">
+                            <strong>Item: ${r.item}</strong>
+                            Buyer: ${r.buyer} | ${r.date}
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        // Render Admin Manage Products List Item
+        function renderAdminProductManagement() {
+            const container = document.getElementById('admin-product-list-container');
+            container.innerHTML = '';
+
+            if (products.length === 0) {
+                container.innerHTML = `<p style="color:var(--text-muted);">No products found in store inventory.</p>`;
+                return;
+            }
+
+            products.forEach(p => {
+                const soldBtnText = p.isSoldOut ? 'Mark Available' : 'Mark Sold Out';
+                const soldBtnClass = p.isSoldOut ? 'btn-gold' : 'btn-dark';
+
+                container.innerHTML += `
+                    <div class="manage-prod-item">
+                        <img src="${p.img}" alt="${p.title}">
+                        <div class="manage-prod-info">
+                            <strong>${p.title} ${p.isSoldOut ? '<span style="color:var(--danger)">(SOLD OUT)</span>' : ''}</strong>
+                            <span>₱${Number(p.price).toLocaleString()} | ${p.category} | Size: ${p.size || 'OS'}</span>
+                        </div>
+                        <div class="manage-prod-actions">
+                            <button class="btn btn-sm ${soldBtnClass}" onclick="toggleSoldOutStatus(${p.id})">${soldBtnText}</button>
+                            <button class="btn btn-sm btn-dark" onclick="openAdminEditItem('product', ${p.id})"><i class="fas fa-edit"></i> Edit</button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteProduct(${p.id})"><i class="fas fa-trash"></i></button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        // Actions: Toggle Sold Out, Delete for Products & Bids
+        function toggleSoldOutStatus(id) {
+            const p = products.find(prod => Number(prod.id) === Number(id));
+            if (p) {
+                p.isSoldOut = !p.isSoldOut;
+                saveData();
+                renderProducts();
+                renderAdminProductManagement();
+            }
+        }
+
+        function toggleBidSoldStatus(id) {
+            const b = bids.find(bid => Number(bid.id) === Number(id));
+            if (b) {
+                b.isSoldOut = !b.isSoldOut;
+                saveData();
+                renderBids();
+            }
+        }
+
+        function deleteProduct(id) {
+            if (confirm("Are you sure you want to permanently delete this product?")) {
+                products = products.filter(p => Number(p.id) !== Number(id));
+                saveData();
+                renderProducts();
+                renderAdminProductManagement();
+            }
+        }
+
+        function deleteBid(id) {
+            if (confirm("Are you sure you want to delete this auction item?")) {
+                bids = bids.filter(b => Number(b.id) !== Number(id));
+                saveData();
+                renderBids();
+            }
+        }
+
+        // SEAMLESS IN-DASHBOARD EDIT ITEM
+        function openAdminEditItem(type, id) {
+            let item;
+            if (type === 'product') {
+                item = products.find(p => Number(p.id) === Number(id));
+            } else {
+                item = bids.find(b => Number(b.id) === Number(id));
+            }
+            if (!item) return;
+
+            document.getElementById('edit-prod-type').value = type;
+            document.getElementById('edit-prod-id').value = item.id;
+            document.getElementById('edit-prod-title').value = item.title || '';
+            document.getElementById('edit-prod-category').value = item.category || 'vintage-shirts';
+            document.getElementById('edit-prod-price').value = type === 'product' ? item.price : item.highestBid;
+            document.getElementById('edit-prod-size').value = item.size || '';
+            document.getElementById('edit-prod-condition').value = item.condition || '';
+            document.getElementById('edit-prod-img').value = item.img || '';
+            document.getElementById('edit-prod-desc').value = item.description || '';
+
+            // Show Edit tab button and switch to it seamlessly
+            document.getElementById('atab-edit').style.display = 'block';
+            switchAdminSubtab('edit');
+        }
+
+        // Submit Seamless Edit Form
+        document.getElementById('admin-edit-product-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const type = document.getElementById('edit-prod-type').value;
+            const id = Number(document.getElementById('edit-prod-id').value);
+
+            if (type === 'product') {
+                const index = products.findIndex(p => Number(p.id) === id);
+                if (index !== -1) {
+                    products[index].title = document.getElementById('edit-prod-title').value;
+                    products[index].category = document.getElementById('edit-prod-category').value;
+                    products[index].price = Number(document.getElementById('edit-prod-price').value);
+                    products[index].size = document.getElementById('edit-prod-size').value;
+                    products[index].condition = document.getElementById('edit-prod-condition').value;
+                    products[index].img = document.getElementById('edit-prod-img').value;
+                    products[index].description = document.getElementById('edit-prod-desc').value;
+                    saveData();
+                    renderProducts();
+                    renderAdminProductManagement();
+                }
+            } else {
+                const index = bids.findIndex(b => Number(b.id) === id);
+                if (index !== -1) {
+                    bids[index].title = document.getElementById('edit-prod-title').value;
+                    bids[index].category = document.getElementById('edit-prod-category').value;
+                    bids[index].highestBid = Number(document.getElementById('edit-prod-price').value);
+                    bids[index].size = document.getElementById('edit-prod-size').value;
+                    bids[index].condition = document.getElementById('edit-prod-condition').value;
+                    bids[index].img = document.getElementById('edit-prod-img').value;
+                    bids[index].description = document.getElementById('edit-prod-desc').value;
+                    saveData();
+                    renderBids();
+                }
+            }
+
+            document.getElementById('atab-edit').style.display = 'none';
+            switchAdminSubtab('manage');
+            alert("Changes saved successfully!");
         });
 
-        // Buy Button Action
-        buyBtn.addEventListener('click', () => {
-            alert(`Awesome! You've claimed the ${modalTitle.textContent}. In a live environment, this would redirect to your secure checkout.`);
-            closeModal();
+        // Toggle Local File vs URL Image Upload
+        function toggleImgSource() {
+            const mode = document.getElementById('prod-img-source').value;
+            if (mode === 'url') {
+                document.getElementById('group-img-url').style.display = 'block';
+                document.getElementById('group-img-file').style.display = 'none';
+            } else {
+                document.getElementById('group-img-url').style.display = 'none';
+                document.getElementById('group-img-file').style.display = 'block';
+            }
+        }
+
+        // Admin Subtab Navigation
+        function switchAdminSubtab(tab) {
+            document.querySelectorAll('.admin-subtab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.admin-tab-content').forEach(c => c.style.display = 'none');
+
+            document.getElementById(`atab-${tab}`).classList.add('active');
+            
+            if (tab === 'add') document.getElementById('admin-product-form').style.display = 'block';
+            if (tab === 'manage') {
+                renderAdminProductManagement();
+                document.getElementById('admin-manage-products').style.display = 'block';
+            }
+            if (tab === 'edit') document.getElementById('admin-edit-product-form').style.display = 'block';
+            if (tab === 'bid') document.getElementById('admin-bid-form').style.display = 'block';
+            if (tab === 'rec') document.getElementById('admin-receipt-form').style.display = 'block';
+            if (tab === 'sec') document.getElementById('admin-creds-form').style.display = 'block';
+        }
+
+        // Add Product Form Submit
+        document.getElementById('admin-product-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const mode = document.getElementById('prod-img-source').value;
+
+            const saveProductObj = (imgUrl) => {
+                const newProd = {
+                    id: Date.now(),
+                    title: document.getElementById('prod-title').value,
+                    category: document.getElementById('prod-category').value,
+                    price: Number(document.getElementById('prod-price').value),
+                    size: document.getElementById('prod-size').value,
+                    condition: document.getElementById('prod-condition').value,
+                    description: document.getElementById('prod-desc').value,
+                    img: imgUrl,
+                    isSoldOut: false
+                };
+
+                products.unshift(newProd);
+                saveData();
+                renderProducts();
+                closeModal('admin-dashboard-modal');
+                alert("Product published successfully!");
+            };
+
+            if (mode === 'file') {
+                const fileInput = document.getElementById('prod-img-file');
+                if (fileInput.files && fileInput.files[0]) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        saveProductObj(e.target.result);
+                    };
+                    reader.readAsDataURL(fileInput.files[0]);
+                } else {
+                    alert("Please select an image file to upload.");
+                }
+            } else {
+                const url = document.getElementById('prod-img-url').value;
+                if (!url) {
+                    alert("Please enter an Image URL.");
+                    return;
+                }
+                saveProductObj(url);
+            }
         });
+
+        // Bidding Process Modal Trigger
+        function triggerBidProcess(bidId) {
+            if (!currentUser) {
+                alert("Please log in or register an account first so you have a User Tag to bid!");
+                openModal('auth-modal');
+                return;
+            }
+            document.getElementById('current-user-tag').textContent = `@${currentUser.id} (${currentUser.displayName})`;
+            openModal('bid-popup-modal');
+        }
+
+        // Auth Switcher & Login
+        function switchAuthTab(tab) {
+            if (tab === 'login') {
+                document.getElementById('login-form').style.display = 'block';
+                document.getElementById('register-form').style.display = 'none';
+                document.getElementById('tab-login').classList.add('active');
+                document.getElementById('tab-register').classList.remove('active');
+            } else {
+                document.getElementById('login-form').style.display = 'none';
+                document.getElementById('register-form').style.display = 'block';
+                document.getElementById('tab-register').classList.add('active');
+                document.getElementById('tab-login').classList.remove('active');
+            }
+        }
+
+        document.getElementById('login-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const u = document.getElementById('login-username').value;
+            const p = document.getElementById('login-password').value;
+
+            const found = users.find(usr => usr.username === u && usr.password === p);
+            if (found) {
+                currentUser = found;
+                saveData();
+                renderAuthHeader();
+                closeModal('auth-modal');
+            } else {
+                alert("Invalid username or password.");
+            }
+        });
+
+        document.getElementById('register-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const name = document.getElementById('reg-name').value;
+            const u = document.getElementById('reg-username').value;
+            const p = document.getElementById('reg-password').value;
+
+            if(users.some(usr => usr.username === u)) {
+                alert("Username is already taken!");
+                return;
+            }
+
+            const newUser = {
+                id: "USR-" + Math.floor(1000 + Math.random() * 9000),
+                username: u,
+                displayName: name,
+                password: p
+            };
+
+            users.push(newUser);
+            currentUser = newUser;
+            saveData();
+            renderAuthHeader();
+            closeModal('auth-modal');
+        });
+
+        function logoutUser() {
+            currentUser = null;
+            saveData();
+            renderAuthHeader();
+        }
+
+        // Crown Admin
+        function triggerAdminModal() {
+            if (isAdmin) {
+                populateAdminSelectors();
+                openModal('admin-dashboard-modal');
+            } else {
+                openModal('admin-login-modal');
+            }
+        }
+
+        document.getElementById('admin-login-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const u = document.getElementById('admin-user-input').value;
+            const p = document.getElementById('admin-pass-input').value;
+
+            if (u === adminCreds.username && p === adminCreds.password) {
+                isAdmin = true;
+                document.body.classList.add('admin-mode');
+                closeModal('admin-login-modal');
+                populateAdminSelectors();
+                openModal('admin-dashboard-modal');
+                renderBids(); // Re-render bids to show admin buttons
+            } else {
+                alert("Incorrect Admin Credentials.");
+            }
+        });
+
+        function populateAdminSelectors() {
+            const bidSelect = document.getElementById('bid-item-select');
+            const userSelect = document.getElementById('bid-user-select');
+
+            bidSelect.innerHTML = bids.map(b => `<option value="${b.id}">${b.title}</option>`).join('');
+            userSelect.innerHTML = users.map(u => `<option value="@${u.id}">@${u.id} (${u.displayName})</option>`).join('');
+
+            loadSelectedBidData();
+        }
+
+        function loadSelectedBidData() {
+            const selectedId = parseInt(document.getElementById('bid-item-select').value);
+            const item = bids.find(b => Number(b.id) === selectedId);
+            if (item) {
+                document.getElementById('bid-amount-input').value = item.highestBid;
+                document.getElementById('bid-user-select').value = item.highestBidderTag;
+            }
+        }
+
+        document.getElementById('admin-bid-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const selectedId = parseInt(document.getElementById('bid-item-select').value);
+            const bidIndex = bids.findIndex(b => Number(b.id) === selectedId);
+
+            if (bidIndex !== -1) {
+                bids[bidIndex].highestBid = Number(document.getElementById('bid-amount-input').value);
+                bids[bidIndex].highestBidderTag = document.getElementById('bid-user-select').value;
+                saveData();
+                renderBids();
+                alert("Highest Bidder & Amount Updated!");
+            }
+        });
+
+        document.getElementById('admin-receipt-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const newReceipt = {
+                id: Date.now(),
+                buyer: document.getElementById('receipt-buyer').value,
+                item: document.getElementById('receipt-item').value,
+                date: "Verified Sale",
+                img: document.getElementById('receipt-img').value
+            };
+
+            receipts.unshift(newReceipt);
+            saveData();
+            renderReceipts();
+            alert("Receipt proof added!");
+        });
+
+        document.getElementById('admin-creds-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            adminCreds.username = document.getElementById('new-admin-user').value;
+            adminCreds.password = document.getElementById('new-admin-pass').value;
+            saveData();
+            alert("Admin Credentials Updated!");
+        });
+
+        // Modal Controls
+        function openModal(id) {
+            document.getElementById(id).classList.add('active');
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.remove('active');
+        }
+
+        // Initialize App
+        renderAuthHeader();
+        renderProducts();
+        renderBids();
+        renderReceipts();
     </script>
 </body>
 </html>
