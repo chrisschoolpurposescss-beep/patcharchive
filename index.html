@@ -1432,6 +1432,7 @@
                 </div>
                 <button type="submit" class="btn btn-gold" style="width: 100%; margin-top: 1rem;">Unlock Owner Panel</button>
                 <button type="button" class="btn btn-dark" style="width:100%;margin-top:10px;" onclick="sendOwnerPasswordReset()">Forgot / Reset Password</button>
+                <div id="owner-login-status" style="margin-top:12px;font-size:.8rem;color:var(--text-muted);"></div>
             </form>
         </div>
     </div>
@@ -2418,8 +2419,6 @@
         }
 
         sbClient?.auth.onAuthStateChange((event, session) => {
-            // Avoid calling Supabase auth methods directly inside this callback;
-            // Supabase can hold an internal auth lock during the event.
             if (event === 'SIGNED_OUT') {
                 isAdmin = false;
                 cloudInitialLoadDone = false;
@@ -2429,20 +2428,17 @@
                 return;
             }
             if (session?.user) {
-                setTimeout(async () => {
-                    try {
-                        const profile = await getCloudAdminProfile(session.user);
-                        isAdmin = !!profile;
-                        document.body.classList.toggle('admin-mode', isAdmin);
-                        renderAuthHeader();
-                        renderCloudStatus();
-                        if (isAdmin && !cloudInitialLoadDone) {
-                            await initializeSupabaseData();
-                        }
-                    } catch (err) {
-                        console.error('Auth state sync failed:', err);
-                    }
-                }, 0);
+                // Never demote the configured owner based on a profile/table lookup.
+                // The Auth UID is the owner authority for this single-owner site.
+                const owner = session.user.id === OWNER_USER_ID;
+                isAdmin = owner;
+                document.body.classList.toggle('admin-mode', owner);
+                renderAuthHeader();
+                renderCloudStatus();
+
+                if (owner && !cloudInitialLoadDone) {
+                    setTimeout(() => initializeSupabaseData().catch(err => console.error('Background cloud load failed:', err)), 0);
+                }
             }
         });
 
@@ -3555,31 +3551,52 @@
             const email = document.getElementById('admin-user-input').value.trim().toLowerCase();
             const password = document.getElementById('admin-pass-input').value;
             const submitBtn = e.submitter || document.querySelector('#admin-login-form button[type="submit"]');
+            const status = document.getElementById('owner-login-status');
             const originalText = submitBtn?.innerHTML || 'Unlock Owner Panel';
-            if (!sbClient) return alert('Supabase could not be loaded. Check your internet connection.');
+            const setStatus = (msg, ok=false) => { if (status) { status.textContent = msg; status.style.color = ok ? 'var(--gold)' : 'var(--text-muted)'; } };
+
+            if (!sbClient) {
+                setStatus('Supabase client failed to load. Check the deployed site connection.');
+                return alert('Supabase could not be loaded. Check your internet connection.');
+            }
+
             try {
                 if (submitBtn) { submitBtn.disabled = true; submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Signing In...'; }
+                setStatus('Connecting to Supabase...');
+
                 const { data, error } = await sbClient.auth.signInWithPassword({ email, password });
+
                 if (error) {
-                    const msg = String(error.message || 'Unknown authentication error');
-                    if (/email not confirmed/i.test(msg)) {
-                        throw new Error('Supabase says this owner email is not confirmed yet. In Supabase Dashboard → Authentication → Users, open the owner user and confirm the email, then try again.');
-                    }
-                    throw new Error(msg);
+                    setStatus(`Supabase error: ${error.message}`);
+                    throw new Error(error.message);
                 }
-                if (!data?.user) throw new Error('Supabase did not return a user session.');
-                const profile = await getCloudAdminProfile(data?.user || null);
-                if (!profile) {
+
+                const user = data?.user;
+                if (!user) {
+                    setStatus('Supabase returned no authenticated user.');
+                    throw new Error('Supabase did not return an authenticated user.');
+                }
+
+                setStatus(`Authenticated as ${user.email || 'user'} • UID: ${user.id}`);
+
+                if (user.id !== OWNER_USER_ID) {
                     await sbClient.auth.signOut();
-                    throw new Error('Login succeeded, but this is not the configured Patch Archive owner account. Use the owner email attached to the configured owner UID.');
+                    setStatus(`Wrong owner account. This account UID is ${user.id}. The configured owner UID is ${OWNER_USER_ID}.`);
+                    throw new Error('You signed in successfully, but this Supabase user is not the configured Patch Archive owner.');
                 }
+
+                // Grant Owner Mode immediately after successful Auth.
+                // Do NOT wait for database initialization or profile queries.
                 isAdmin = true;
-                cloudInitialLoadDone = false;
+                currentUser = currentUser || { id: 'OWNER', username: user.email || 'owner', displayName: 'Patch Archive Owner', email: user.email || '', emailVerified: true };
                 document.body.classList.add('admin-mode');
+                cloudInitialLoadDone = false;
                 renderAuthHeader();
                 renderCloudStatus();
                 closeModal('admin-login-modal');
-                await initializeSupabaseData();
+
+                // Open the admin panel immediately. Cloud data loading happens afterward
+                // so a database/RLS issue cannot make the login appear to do nothing.
                 populateAdminSelectors();
                 renderAdminProductManagement();
                 renderAdminBidManagement();
@@ -3592,9 +3609,22 @@
                 renderAdminAllProducts();
                 openModal('admin-dashboard-modal');
                 renderBids();
+
+                setStatus('Owner access granted.', true);
+
+                // Load shared cloud data in the background.
+                try {
+                    await initializeSupabaseData();
+                } catch (cloudErr) {
+                    console.error('Background cloud load failed:', cloudErr);
+                    alert('Owner access is working, but shared store data could not be loaded. Check Supabase RLS/table settings.');
+                }
             } catch (err) {
                 console.error('Owner login failed:', err);
-                alert('Owner login failed: ' + (err?.message || err));
+                // Keep the modal open when login fails so the user can correct the credentials.
+                if (!String(err?.message || '').includes('Wrong owner account')) {
+                    alert('Owner login failed: ' + (err?.message || err));
+                }
             } finally {
                 if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = originalText; }
             }
@@ -3813,6 +3843,9 @@
                 alert('Could not update password: ' + (err?.message || err));
             }
         });
+
+        // Owner-login diagnostics: prints the configured UID and current session state to the browser console.
+        console.info('[Patch Archive] Configured owner UID:', OWNER_USER_ID);
 
         // Initialize App
         isAdmin = false;
