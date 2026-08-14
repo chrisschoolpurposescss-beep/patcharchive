@@ -11,8 +11,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800;900&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root {
             --primary-red: #E63946;
@@ -1423,7 +1423,7 @@
             <form id="admin-login-form">
                 <div class="form-group">
                     <label>Owner Email</label>
-                    <input type="email" id="admin-user-input" placeholder="owner@example.com" required>
+                    <input type="text" id="admin-user-input" placeholder="admin" required>
                     <div class="tiny-note">Use the Patch Archive owner email and password you created in Supabase. No verification code is required for the owner login.</div>
                 </div>
                 <div class="form-group">
@@ -1431,32 +1431,13 @@
                     <input type="password" id="admin-pass-input" required>
                 </div>
                 <button type="submit" class="btn btn-gold" style="width: 100%; margin-top: 1rem;">Unlock Owner Panel</button>
-                <button type="button" class="btn btn-dark" style="width:100%;margin-top:10px;" onclick="sendOwnerPasswordReset()">Forgot / Reset Password</button>
+                <div class="tiny-note" style="margin-top:10px;">Owner login is local to this browser. Default: admin / 123</div>
                 <div id="owner-login-status" style="margin-top:12px;font-size:.8rem;color:var(--text-muted);"></div>
             </form>
         </div>
     </div>
 
 
-    <!-- PASSWORD RESET MODAL -->
-    <div class="modal-overlay" id="password-reset-modal">
-        <div class="modal-box">
-            <span class="close-modal" onclick="closeModal('password-reset-modal')">&times;</span>
-            <h3 style="color:var(--gold);">Reset Owner Password</h3>
-            <p style="color:var(--text-muted);font-size:.9rem;margin-bottom:1rem;">Enter a new password for your Patch Archive owner account.</p>
-            <form id="password-reset-form">
-                <div class="form-group">
-                    <label>New Password</label>
-                    <input type="password" id="reset-new-password" minlength="8" required>
-                </div>
-                <div class="form-group">
-                    <label>Confirm New Password</label>
-                    <input type="password" id="reset-confirm-password" minlength="8" required>
-                </div>
-                <button type="submit" class="btn btn-gold" style="width:100%;">Save New Password</button>
-            </form>
-        </div>
-    </div>
 
     <!-- ADMIN CONTROL DASHBOARD MODAL -->
     <div class="modal-overlay" id="admin-dashboard-modal">
@@ -2174,24 +2155,11 @@
             localStorage.setItem(key, JSON.stringify(value));
         }
 
-        // ============================================================
-        // SUPABASE SHARED STORE CONNECTION
-        // Public publishable key is safe for browser use; RLS protects writes.
-        // ============================================================
+        // Supabase is used ONLY as the shared store database. Owner login stays local.
         const SUPABASE_URL = 'https://efjgiiiavspvymwxutjj.supabase.co';
         const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_qmit_A7cfBeXCpueM09hcQ_k2IINZ9d';
-        // Ignore stale/expired email-auth callback parameters so they cannot block normal owner login.
-        try {
-            if (/[#?](?:error|error_code|error_description|code|access_token|refresh_token)=/i.test(window.location.href)) {
-                const cleanUrl = window.location.origin + window.location.pathname;
-                window.history.replaceState({}, document.title, cleanUrl);
-            }
-        } catch (e) { console.warn('Could not clean auth callback URL:', e); }
-
         const sbClient = (window.supabase && typeof window.supabase.createClient === 'function')
-            ? window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-                auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false }
-            })
+            ? window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } })
             : null;
         let cloudReady = !!sbClient;
         let cloudSyncBusy = false;
@@ -2206,22 +2174,11 @@
         // This removes the fragile dependency on the profiles table for determining owner UI access.
         const OWNER_USER_ID = '7f5a7303-f0e6-4545-99ef-6372eb8e447a';
 
-        async function getCloudAdminProfile(userOverride = null) {
-            if (!sbClient) return null;
-            let user = userOverride;
-            if (!user) {
-                const { data, error: userError } = await sbClient.auth.getUser();
-                if (userError || !data?.user) return null;
-                user = data.user;
-            }
-            if (!user?.id || user.id !== OWNER_USER_ID) return null;
-            return { user, profile: { id: user.id, username: user.email || 'owner', display_name: 'Patch Archive Owner', is_admin: true, email_verified: true } };
-        }
-
+        // No Supabase authentication is required for the shared-store bridge.
+        // The local owner login controls who gets the admin UI; Supabase is only the public data store here.
         async function cloudAdminRequired() {
-            const admin = await getCloudAdminProfile();
-            if (!admin) throw new Error('This Supabase account is not the configured Patch Archive owner account.');
-            return admin;
+            if (!sbClient) throw new Error('Supabase is unavailable.');
+            return true;
         }
 
         function mapCloudProduct(row) {
@@ -2340,6 +2297,8 @@
         }
 
         async function syncAllStoreDataToCloud() {
+            if (!sbClient) return;
+
             await cloudAdminRequired();
             const categoryRows=siteCategories.map(c=>({ name:c.name, slug:c.id }));
             const brandRows=siteBrands.map(name=>({ name }));
@@ -2394,53 +2353,33 @@
         }
 
         async function initializeSupabaseData() {
-            if (!sbClient) { renderCloudStatus(); return; }
+            if (!sbClient) { cloudReady = false; renderCloudStatus(); return; }
             try {
-                await sbClient.auth.getSession();
-                const profile=await getCloudAdminProfile();
-                if(profile){ isAdmin=true; document.body.classList.add('admin-mode'); }
-                const localSeed={ products:[...products], bids:[...bids], receipts:[...receipts], categories:[...siteCategories], brands:[...siteBrands], announcement, connectLinks:{...connectLinks}, siteLogo:{...siteLogo} };
-                let cloud=await fetchCloudCollections();
-                const coreCloudEmpty=!cloud.products.length && !cloud.bids.length && !cloud.receipts.length;
-                if (profile && coreCloudEmpty && (localSeed.products.length || localSeed.bids.length || localSeed.receipts.length)) {
-                    await syncAllStoreDataToCloud();
-                    cloud=await fetchCloudCollections();
-                }
-                if (cloudHasStoreData(cloud)) {
+                cloudReady = true;
+                const cloud = await fetchCloudCollections();
+                const hasCloud = cloudHasStoreData(cloud);
+                if (hasCloud) {
                     applyCloudCollections(cloud);
                     normalizeCatalogData();
-                    saveData();
+                    // Keep a local cache too, but cloud is the source of truth.
+                    try {
+                        const payloads={patch_users:users,patch_products:products,patch_bids:bids,patch_receipts:receipts,patch_announcement:announcement,patch_connect_links:connectLinks,patch_site_logo:siteLogo,patch_site_categories:siteCategories,patch_site_brands:siteBrands};
+                        for (const [key,value] of Object.entries(payloads)) writeLocalStorage(key,value);
+                    } catch (_) {}
+                } else if (isAdmin && (products.length || bids.length || receipts.length)) {
+                    await syncAllStoreDataToCloud();
                 }
-                cloudInitialLoadDone=true;
+                cloudInitialLoadDone = true;
                 renderCloudStatus();
-                renderAuthHeader(); renderProducts(); renderGlobalSearchResults(); renderBids(); renderReceipts(); renderAnnouncement(); renderConnect(); applyLogoToSite();
-                if (profile) { populateAdminSelectors(); renderAdminProductManagement(); renderAdminBidManagement(); populateAnnouncementForm(); renderAdminUsersAndLogs(); populateConnectForm(); populateLogoForm(); populateAdminCatalogSelects(); renderCatalogManagers(); renderAdminAllProducts(); }
-            } catch(err){ console.error('Supabase initialization failed:',err); cloudReady=false; renderCloudStatus(); }
+                renderProducts(); renderGlobalSearchResults(); renderBids(); renderReceipts(); renderAnnouncement(); renderConnect(); applyLogoToSite();
+                if (isAdmin) { renderAdminProductManagement(); renderAdminBidManagement(); renderAdminAllProducts(); renderCatalogManagers(); }
+            } catch (err) {
+                console.error('Supabase shared-store load failed:', err);
+                cloudReady = false;
+                renderCloudStatus();
+            }
         }
 
-        sbClient?.auth.onAuthStateChange((event, session) => {
-            if (event === 'SIGNED_OUT') {
-                isAdmin = false;
-                cloudInitialLoadDone = false;
-                document.body.classList.remove('admin-mode');
-                renderAuthHeader();
-                renderCloudStatus();
-                return;
-            }
-            if (session?.user) {
-                // Never demote the configured owner based on a profile/table lookup.
-                // The Auth UID is the owner authority for this single-owner site.
-                const owner = session.user.id === OWNER_USER_ID;
-                isAdmin = owner;
-                document.body.classList.toggle('admin-mode', owner);
-                renderAuthHeader();
-                renderCloudStatus();
-
-                if (owner && !cloudInitialLoadDone) {
-                    setTimeout(() => initializeSupabaseData().catch(err => console.error('Background cloud load failed:', err)), 0);
-                }
-            }
-        });
 
         function saveData() {
             const payloads = {
@@ -3532,71 +3471,15 @@
         }
 
 
-        async function sendOwnerPasswordReset() {
-            if (!sbClient) return alert('Supabase could not be loaded.');
-            const email = document.getElementById('admin-user-input').value.trim().toLowerCase();
-            if (!email) return alert('Enter the owner email first.');
-            try {
-                const redirectTo = 'https://patcharchive.vercel.app/reset-password.html';
-                const { error } = await sbClient.auth.resetPasswordForEmail(email, { redirectTo });
-                if (error) throw error;
-                alert('Password reset email sent. Use the newest email only.');
-            } catch (err) {
-                alert('Could not send password reset: ' + (err?.message || err));
-            }
-        }
 
-        document.getElementById('admin-login-form').addEventListener('submit', async (e) => {
+        document.getElementById('admin-login-form').addEventListener('submit', (e) => {
             e.preventDefault();
-            const email = document.getElementById('admin-user-input').value.trim().toLowerCase();
+            const username = document.getElementById('admin-user-input').value.trim();
             const password = document.getElementById('admin-pass-input').value;
-            const submitBtn = e.submitter || document.querySelector('#admin-login-form button[type="submit"]');
-            const status = document.getElementById('owner-login-status');
-            const originalText = submitBtn?.innerHTML || 'Unlock Owner Panel';
-            const setStatus = (msg, ok=false) => { if (status) { status.textContent = msg; status.style.color = ok ? 'var(--gold)' : 'var(--text-muted)'; } };
-
-            if (!sbClient) {
-                setStatus('Supabase client failed to load. Check the deployed site connection.');
-                return alert('Supabase could not be loaded. Check your internet connection.');
-            }
-
-            try {
-                if (submitBtn) { submitBtn.disabled = true; submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Signing In...'; }
-                setStatus('Connecting to Supabase...');
-
-                const { data, error } = await sbClient.auth.signInWithPassword({ email, password });
-
-                if (error) {
-                    setStatus(`Supabase error: ${error.message}`);
-                    throw new Error(error.message);
-                }
-
-                const user = data?.user;
-                if (!user) {
-                    setStatus('Supabase returned no authenticated user.');
-                    throw new Error('Supabase did not return an authenticated user.');
-                }
-
-                setStatus(`Authenticated as ${user.email || 'user'} • UID: ${user.id}`);
-
-                if (user.id !== OWNER_USER_ID) {
-                    await sbClient.auth.signOut();
-                    setStatus(`Wrong owner account. This account UID is ${user.id}. The configured owner UID is ${OWNER_USER_ID}.`);
-                    throw new Error('You signed in successfully, but this Supabase user is not the configured Patch Archive owner.');
-                }
-
-                // Grant Owner Mode immediately after successful Auth.
-                // Do NOT wait for database initialization or profile queries.
+            if (username === adminCreds.username && password === adminCreds.password) {
                 isAdmin = true;
-                currentUser = currentUser || { id: 'OWNER', username: user.email || 'owner', displayName: 'Patch Archive Owner', email: user.email || '', emailVerified: true };
                 document.body.classList.add('admin-mode');
-                cloudInitialLoadDone = false;
-                renderAuthHeader();
-                renderCloudStatus();
                 closeModal('admin-login-modal');
-
-                // Open the admin panel immediately. Cloud data loading happens afterward
-                // so a database/RLS issue cannot make the login appear to do nothing.
                 populateAdminSelectors();
                 renderAdminProductManagement();
                 renderAdminBidManagement();
@@ -3609,24 +3492,8 @@
                 renderAdminAllProducts();
                 openModal('admin-dashboard-modal');
                 renderBids();
-
-                setStatus('Owner access granted.', true);
-
-                // Load shared cloud data in the background.
-                try {
-                    await initializeSupabaseData();
-                } catch (cloudErr) {
-                    console.error('Background cloud load failed:', cloudErr);
-                    alert('Owner access is working, but shared store data could not be loaded. Check Supabase RLS/table settings.');
-                }
-            } catch (err) {
-                console.error('Owner login failed:', err);
-                // Keep the modal open when login fails so the user can correct the credentials.
-                if (!String(err?.message || '').includes('Wrong owner account')) {
-                    alert('Owner login failed: ' + (err?.message || err));
-                }
-            } finally {
-                if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = originalText; }
+            } else {
+                alert('Incorrect owner username or password.');
             }
         });
 
@@ -3825,24 +3692,6 @@
         populateAdminCatalogSelects();
         populateShopFilters();
 
-        document.getElementById('password-reset-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            if (!sbClient) return alert('Supabase could not be loaded.');
-            const newPassword = document.getElementById('reset-new-password').value;
-            const confirmPassword = document.getElementById('reset-confirm-password').value;
-            if (newPassword.length < 8) return alert('Password must be at least 8 characters.');
-            if (newPassword !== confirmPassword) return alert('Passwords do not match.');
-            try {
-                const { error } = await sbClient.auth.updateUser({ password: newPassword });
-                if (error) throw error;
-                closeModal('password-reset-modal');
-                document.getElementById('reset-new-password').value='';
-                document.getElementById('reset-confirm-password').value='';
-                alert('Owner password updated successfully.');
-            } catch (err) {
-                alert('Could not update password: ' + (err?.message || err));
-            }
-        });
 
         // Owner-login diagnostics: prints the configured UID and current session state to the browser console.
         console.info('[Patch Archive] Configured owner UID:', OWNER_USER_ID);
