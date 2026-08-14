@@ -2024,7 +2024,7 @@
             saveData();
             const emailed = await sendOwnerDetailsEmail(currentUser);
             if (emailed) {
-                alert(`Details saved and emailed to ${chris.schoolpurposes.css@gmail.com}.`);
+                alert(`Details saved and emailed to ${OWNER_EMAIL}.`);
             } else {
                 alert('Details saved, but EmailJS is not configured yet, so the owner email could not be sent.');
             }
