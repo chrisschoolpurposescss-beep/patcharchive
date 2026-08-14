@@ -2171,12 +2171,16 @@
             return sbClient.from(table);
         }
 
-        async function getCloudAdminProfile() {
+        async function getCloudAdminProfile(userOverride = null) {
             if (!sbClient) return null;
-            const { data: { user }, error: userError } = await sbClient.auth.getUser();
-            if (userError || !user) return null;
+            let user = userOverride;
+            if (!user) {
+                const { data, error: userError } = await sbClient.auth.getUser();
+                if (userError || !data?.user) return null;
+                user = data.user;
+            }
             const { data: profile, error } = await cloudTable('profiles')
-                .select('id, username, display_name, is_admin')
+                .select('id, username, display_name, is_admin, email_verified')
                 .eq('id', user.id)
                 .maybeSingle();
             if (error || !profile || !profile.is_admin) return null;
@@ -2383,12 +2387,32 @@
             } catch(err){ console.error('Supabase initialization failed:',err); cloudReady=false; renderCloudStatus(); }
         }
 
-        sbClient?.auth.onAuthStateChange(async (event, session) => {
-            if (event==='SIGNED_OUT') { isAdmin=false; document.body.classList.remove('admin-mode'); renderAuthHeader(); return; }
-            if (session) {
-                const profile=await getCloudAdminProfile();
-                isAdmin=!!profile; document.body.classList.toggle('admin-mode',isAdmin); renderAuthHeader();
-                if(isAdmin && !cloudInitialLoadDone) await initializeSupabaseData();
+        sbClient?.auth.onAuthStateChange((event, session) => {
+            // Avoid calling Supabase auth methods directly inside this callback;
+            // Supabase can hold an internal auth lock during the event.
+            if (event === 'SIGNED_OUT') {
+                isAdmin = false;
+                cloudInitialLoadDone = false;
+                document.body.classList.remove('admin-mode');
+                renderAuthHeader();
+                renderCloudStatus();
+                return;
+            }
+            if (session?.user) {
+                setTimeout(async () => {
+                    try {
+                        const profile = await getCloudAdminProfile(session.user);
+                        isAdmin = !!profile;
+                        document.body.classList.toggle('admin-mode', isAdmin);
+                        renderAuthHeader();
+                        renderCloudStatus();
+                        if (isAdmin && !cloudInitialLoadDone) {
+                            await initializeSupabaseData();
+                        }
+                    } catch (err) {
+                        console.error('Auth state sync failed:', err);
+                    }
+                }, 0);
             }
         });
 
@@ -3485,23 +3509,42 @@
             e.preventDefault();
             const email = document.getElementById('admin-user-input').value.trim().toLowerCase();
             const password = document.getElementById('admin-pass-input').value;
+            const submitBtn = e.submitter || document.querySelector('#admin-login-form button[type="submit"]');
+            const originalText = submitBtn?.innerHTML || 'Unlock Owner Panel';
             if (!sbClient) return alert('Supabase could not be loaded. Check your internet connection.');
             try {
-                const { error } = await sbClient.auth.signInWithPassword({ email, password });
-                if (error) return alert('Owner login failed: ' + error.message);
-                const profile = await getCloudAdminProfile();
+                if (submitBtn) { submitBtn.disabled = true; submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Signing In...'; }
+                const { data, error } = await sbClient.auth.signInWithPassword({ email, password });
+                if (error) throw new Error(error.message);
+                const profile = await getCloudAdminProfile(data?.user || null);
                 if (!profile) {
                     await sbClient.auth.signOut();
-                    return alert('This account is not marked as an Owner/Admin in Supabase. Set profiles.is_admin = true for this account first.');
+                    throw new Error('Login succeeded, but this account is not marked as Owner/Admin. Check public.profiles for this user and set is_admin = true.');
                 }
                 isAdmin = true;
+                cloudInitialLoadDone = false;
                 document.body.classList.add('admin-mode');
+                renderAuthHeader();
+                renderCloudStatus();
                 closeModal('admin-login-modal');
                 await initializeSupabaseData();
-                populateAdminSelectors(); renderAdminProductManagement(); renderAdminBidManagement(); populateAnnouncementForm(); renderAdminUsersAndLogs(); populateConnectForm(); populateLogoForm(); populateAdminCatalogSelects(); renderCatalogManagers(); renderAdminAllProducts(); openModal('admin-dashboard-modal'); renderBids();
+                populateAdminSelectors();
+                renderAdminProductManagement();
+                renderAdminBidManagement();
+                populateAnnouncementForm();
+                renderAdminUsersAndLogs();
+                populateConnectForm();
+                populateLogoForm();
+                populateAdminCatalogSelects();
+                renderCatalogManagers();
+                renderAdminAllProducts();
+                openModal('admin-dashboard-modal');
+                renderBids();
             } catch (err) {
-                console.error(err);
+                console.error('Owner login failed:', err);
                 alert('Owner login failed: ' + (err?.message || err));
+            } finally {
+                if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = originalText; }
             }
         });
 
@@ -3716,7 +3759,7 @@
         toggleEditImgSource();
         renderConnect();
         renderCloudStatus();
-        initializeSupabaseData();
+        setTimeout(() => initializeSupabaseData(), 0);
     </script>
 </body>
 </html>
