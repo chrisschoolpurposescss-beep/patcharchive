@@ -3541,7 +3541,7 @@
             const email = document.getElementById('admin-user-input').value.trim().toLowerCase();
             if (!email) return alert('Enter the owner email first.');
             try {
-                const redirectTo = 'https://patcharchive.vercel.app/';
+                const redirectTo = 'https://patcharchive.vercel.app/reset-password.html';
                 const { error } = await sbClient.auth.resetPasswordForEmail(email, { redirectTo });
                 if (error) throw error;
                 alert('Password reset email sent. Use the newest email only.');
@@ -3811,12 +3811,6 @@
                 alert('Owner password updated successfully.');
             } catch (err) {
                 alert('Could not update password: ' + (err?.message || err));
-            }
-        });
-
-        sbClient?.auth.onAuthStateChange((event, session) => {
-            if (event === 'PASSWORD_RECOVERY') {
-                setTimeout(() => openModal('password-reset-modal'), 0);
             }
         });
 
