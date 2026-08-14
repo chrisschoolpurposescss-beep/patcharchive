@@ -11,6 +11,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800;900&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
     <style>
         :root {
@@ -1082,6 +1083,8 @@
         .user-log-table th, .user-log-table td { padding:9px 10px; border-bottom:1px solid #262626; text-align:left; vertical-align:top; }
         .user-log-table th { color:var(--gold); background:#181818; position:sticky; top:0; z-index:1; }
         .user-log-table td { color:#ddd; }
+        #cloud-sync-status.cloud-ok{color:#8cffb1;border-color:rgba(140,255,177,.25);}
+        #cloud-sync-status.cloud-off{color:#ff9a9a;border-color:rgba(255,59,48,.25);}
         .status-pill { display:inline-block; padding:3px 8px; border-radius:999px; font-size:.68rem; font-weight:800; border:1px solid #333; background:#222; }
         .status-pill.ok { color:#8cffb1; border-color:rgba(140,255,177,.25); }
         .status-pill.muted { color:#aaa; }
@@ -1186,6 +1189,7 @@
                 <a class="nav-main-link" href="#receipts" onclick="closeNav()">Receipt</a>
                 <a class="nav-main-link" href="#connect" onclick="closeNav()">Connect</a>
                 <div id="auth-nav-container"></div>
+                <span id="cloud-sync-status" class="status-pill" style="margin-left:8px;display:none;">Cloud</span>
             </nav>
         </div>
     </header>
@@ -1418,8 +1422,9 @@
             <h3 style="color: var(--gold);">👑 Owner Access</h3>
             <form id="admin-login-form">
                 <div class="form-group">
-                    <label>Admin Username</label>
-                    <input type="text" id="admin-user-input" required>
+                    <label>Owner Email</label>
+                    <input type="email" id="admin-user-input" placeholder="owner@example.com" required>
+                    <div class="tiny-note">Owner login uses the Supabase Auth email/password account.</div>
                 </div>
                 <div class="form-group">
                     <label>Admin Password</label>
@@ -2146,6 +2151,247 @@
             localStorage.setItem(key, JSON.stringify(value));
         }
 
+        // ============================================================
+        // SUPABASE SHARED STORE CONNECTION
+        // Public publishable key is safe for browser use; RLS protects writes.
+        // ============================================================
+        const SUPABASE_URL = 'https://efjgiiiavspvymwxutjj.supabase.co';
+        const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_qmit_A7cfBeXCpueM09hcQ_k2IINZ9d';
+        const sbClient = (window.supabase && typeof window.supabase.createClient === 'function')
+            ? window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+                auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+            })
+            : null;
+        let cloudReady = !!sbClient;
+        let cloudSyncBusy = false;
+        let cloudInitialLoadDone = false;
+
+        function cloudTable(table) {
+            if (!sbClient) throw new Error('Supabase client is not available.');
+            return sbClient.from(table);
+        }
+
+        async function getCloudAdminProfile() {
+            if (!sbClient) return null;
+            const { data: { user }, error: userError } = await sbClient.auth.getUser();
+            if (userError || !user) return null;
+            const { data: profile, error } = await cloudTable('profiles')
+                .select('id, username, display_name, is_admin')
+                .eq('id', user.id)
+                .maybeSingle();
+            if (error || !profile || !profile.is_admin) return null;
+            return { user, profile };
+        }
+
+        async function cloudAdminRequired() {
+            const admin = await getCloudAdminProfile();
+            if (!admin) throw new Error('Your Supabase account is not an owner/admin account. Create the Auth user and set profiles.is_admin = true first.');
+            return admin;
+        }
+
+        function mapCloudProduct(row) {
+            return {
+                id: Number(row.id),
+                title: row.title || '',
+                category: row.category_name || '',
+                brand: row.brand_name || '',
+                price: Number(row.price || 0),
+                size: row.size || '',
+                condition: row.condition || '',
+                description: row.description || '',
+                img: row.main_image || '',
+                subImages: Array.isArray(row.sub_images) ? row.sub_images : [],
+                subVideos: Array.isArray(row.sub_videos) ? row.sub_videos : [],
+                isSoldOut: !!row.is_sold_out
+            };
+        }
+
+        function mapCloudBid(row) {
+            return {
+                id: Number(row.id),
+                title: row.title || '',
+                category: row.category_name || '',
+                brand: row.brand_name || '',
+                price: Number(row.start_price || 0),
+                startPrice: Number(row.start_price || 0),
+                highestBid: Number(row.highest_bid || 0),
+                highestBidderTag: row.highest_bidder_tag || '@Guest',
+                size: row.size || '',
+                condition: row.condition || '',
+                description: row.description || '',
+                img: row.main_image || '',
+                subImages: Array.isArray(row.sub_images) ? row.sub_images : [],
+                subVideos: Array.isArray(row.sub_videos) ? row.sub_videos : [],
+                isSoldOut: !!row.is_sold_out
+            };
+        }
+
+        function mapCloudReceipt(row) {
+            return {
+                id: Number(row.id),
+                buyer: row.buyer || '',
+                item: row.item || '',
+                date: row.sale_date || 'Verified Sale',
+                mediaType: row.media_type || 'image',
+                mediaSrc: row.media_url || '',
+                details: row.details || '',
+                img: row.media_url || ''
+            };
+        }
+
+        async function fetchCloudCollections() {
+            if (!sbClient) return null;
+            const results = await Promise.all([
+                cloudTable('products').select('*').order('created_at', { ascending: false }),
+                cloudTable('bids').select('*').order('created_at', { ascending: false }),
+                cloudTable('receipts').select('*').order('created_at', { ascending: false }),
+                cloudTable('categories').select('*').order('name'),
+                cloudTable('brands').select('*').order('name'),
+                cloudTable('announcements').select('*').eq('is_active', true).order('updated_at', { ascending: false }).limit(1),
+                cloudTable('connect_links').select('*').eq('is_active', true).order('sort_order'),
+                cloudTable('site_settings').select('*').eq('setting_key', 'site_logo').maybeSingle()
+            ]);
+            const labels = ['products','bids','receipts','categories','brands','announcements','connect_links','site_settings'];
+            for (let i=0;i<results.length;i++) {
+                if (results[i].error) throw new Error(`Supabase ${labels[i]}: ${results[i].error.message}`);
+            }
+            return {
+                products: results[0].data || [],
+                bids: results[1].data || [],
+                receipts: results[2].data || [],
+                categories: results[3].data || [],
+                brands: results[4].data || [],
+                announcements: results[5].data || [],
+                connectLinks: results[6].data || [],
+                siteLogo: results[7].data?.setting_value || null
+            };
+        }
+
+        function cloudHasStoreData(cloud) {
+            return !!cloud && (cloud.products.length || cloud.bids.length || cloud.receipts.length || cloud.categories.length || cloud.brands.length || cloud.announcements.length || cloud.connectLinks.length || cloud.siteLogo);
+        }
+
+        function applyCloudCollections(cloud) {
+            if (!cloud) return;
+            if (cloud.products.length) products = cloud.products.map(mapCloudProduct);
+            if (cloud.bids.length) bids = cloud.bids.map(mapCloudBid);
+            if (cloud.receipts.length) receipts = cloud.receipts.map(mapCloudReceipt);
+            if (cloud.categories.length) siteCategories = cloud.categories.map(c => ({ id: String(c.slug), name: c.name }));
+            if (cloud.brands.length) siteBrands = cloud.brands.map(b => b.name);
+            if (cloud.announcements.length) {
+                const a=cloud.announcements[0];
+                announcement={ type:a.type||'announcement', label:a.label||'', title:a.title||'', message:a.message||'', mediaType:a.media_type||'none', mediaSrc:a.media_url||'', linkText:a.link_text||'', linkUrl:a.link_url||'', active:!!a.is_active };
+            }
+            if (cloud.connectLinks.length) {
+                const next={...connectLinks};
+                cloud.connectLinks.forEach(r=>{ next[r.platform]={ label:r.display_text||r.platform, url:r.url||'', isActive:!!r.is_active }; });
+                connectLinks=next;
+            }
+            if (cloud.siteLogo) siteLogo={ src:cloud.siteLogo.src||'logo.png', shape:cloud.siteLogo.shape||'circle', zoom:Number(cloud.siteLogo.zoom||1), x:Number(cloud.siteLogo.x||0), y:Number(cloud.siteLogo.y||0), rotate:Number(cloud.siteLogo.rotate||0) };
+        }
+
+        function localProductRow(p) {
+            return { id:Number(p.id), title:p.title||'', category_name:getCategoryName(p.category)||null, brand_name:p.brand||null, price:Number(p.price||0), size:p.size||'', condition:p.condition||'', description:p.description||'', main_image:p.img||'', sub_images:Array.isArray(p.subImages)?p.subImages.filter(v=>typeof v==='string' && !v.startsWith('data:')):[], sub_videos:Array.isArray(p.subVideos)?p.subVideos.filter(v=>typeof v==='string' && !v.startsWith('data:')):[], is_sold_out:!!p.isSoldOut };
+        }
+        function localBidRow(b) {
+            return { id:Number(b.id), title:b.title||'', category_name:getCategoryName(b.category)||null, brand_name:b.brand||null, start_price:Number(b.startPrice||b.price||0), highest_bid:Number(b.highestBid||b.startPrice||0), highest_bidder_tag:b.highestBidderTag||'@Guest', size:b.size||'', condition:b.condition||'', description:b.description||'', main_image:b.img||'', sub_images:Array.isArray(b.subImages)?b.subImages.filter(v=>typeof v==='string' && !v.startsWith('data:')):[], sub_videos:Array.isArray(b.subVideos)?b.subVideos.filter(v=>typeof v==='string' && !v.startsWith('data:')):[], is_sold_out:!!b.isSoldOut };
+        }
+        function localReceiptRow(r) { return { id:Number(r.id), buyer:r.buyer||'', item:r.item||'', sale_date:r.date||'Verified Sale', media_type:r.mediaType||'image', media_url:r.mediaSrc||r.img||'', details:r.details||'' }; }
+
+        async function syncTableById(table, rows) {
+            if (!rows.length) return;
+            const { error } = await cloudTable(table).upsert(rows, { onConflict:'id' });
+            if (error) throw error;
+        }
+
+        async function syncAllStoreDataToCloud() {
+            await cloudAdminRequired();
+            const categoryRows=siteCategories.map(c=>({ name:c.name, slug:c.id }));
+            const brandRows=siteBrands.map(name=>({ name }));
+            if (categoryRows.length) { const {error}=await cloudTable('categories').upsert(categoryRows,{onConflict:'slug'}); if(error) throw error; }
+            if (brandRows.length) { const {error}=await cloudTable('brands').upsert(brandRows,{onConflict:'name'}); if(error) throw error; }
+            await syncTableById('products', products.map(localProductRow));
+            await syncTableById('bids', bids.map(localBidRow));
+            await syncTableById('receipts', receipts.map(localReceiptRow));
+            // Remove remote rows deleted locally.
+            for (const [table, localIds] of [['products',products.map(p=>Number(p.id))],['bids',bids.map(b=>Number(b.id))],['receipts',receipts.map(r=>Number(r.id))]]) {
+                const { data, error }=await cloudTable(table).select('id'); if(error) throw error;
+                const keep=new Set(localIds); const remove=(data||[]).map(r=>Number(r.id)).filter(id=>!keep.has(id));
+                for(const id of remove){ const {error:e}=await cloudTable(table).delete().eq('id',id); if(e) throw e; }
+            }
+            // Categories / brands are managed by the owner, so remove rows no longer in the local catalog.
+            const {data:remoteCats,error:catErr}=await cloudTable('categories').select('id,slug'); if(catErr) throw catErr;
+            const localCatSlugs=new Set(siteCategories.map(c=>c.id));
+            for(const row of (remoteCats||[])){ if(!localCatSlugs.has(row.slug)){ const {error:e}=await cloudTable('categories').delete().eq('id',row.id); if(e) throw e; } }
+            const {data:remoteBrands,error:brandErr}=await cloudTable('brands').select('id,name'); if(brandErr) throw brandErr;
+            const localBrandNames=new Set(siteBrands.map(b=>b.toLowerCase()));
+            for(const row of (remoteBrands||[])){ if(!localBrandNames.has(String(row.name||'').toLowerCase())){ const {error:e}=await cloudTable('brands').delete().eq('id',row.id); if(e) throw e; } }
+            // Announcement: one active row for the public storefront.
+            if (announcement && announcement.active) {
+                const row={id:1,type:announcement.type||'announcement',label:announcement.label||'',title:announcement.title||'',message:announcement.message||'',media_type:announcement.mediaType||'none',media_url:typeof announcement.mediaSrc==='string' && !announcement.mediaSrc.startsWith('data:') ? announcement.mediaSrc : '',link_text:announcement.linkText||'',link_url:announcement.linkUrl||'',is_active:true};
+                const {error}=await cloudTable('announcements').upsert(row,{onConflict:'id'}); if(error) throw error;
+            } else { const {error}=await cloudTable('announcements').delete().neq('id',0); if(error) throw error; }
+            const connectRows=['facebook','instagram','email'].map((key,index)=>({platform:key,display_text:connectLinks[key]?.label||key,url:connectLinks[key]?.url||'',is_active:connectLinks[key]?.isActive!==false,sort_order:index+1}));
+            const {error:clErr}=await cloudTable('connect_links').upsert(connectRows,{onConflict:'platform'}); if(clErr) throw clErr;
+            const logoValue={src:siteLogo.src||'logo.png',shape:siteLogo.shape||'circle',zoom:Number(siteLogo.zoom||1),x:Number(siteLogo.x||0),y:Number(siteLogo.y||0),rotate:Number(siteLogo.rotate||0)};
+            const {error:logoErr}=await cloudTable('site_settings').upsert({setting_key:'site_logo',setting_value:logoValue},{onConflict:'setting_key'}); if(logoErr) throw logoErr;
+            return true;
+        }
+
+        let cloudSyncTimer=null;
+        function scheduleCloudSync() {
+            if (!sbClient || !isAdmin) return;
+            clearTimeout(cloudSyncTimer);
+            cloudSyncTimer=setTimeout(async()=>{
+                if(cloudSyncBusy) return;
+                cloudSyncBusy=true;
+                try { await syncAllStoreDataToCloud(); window.__patchCloudSyncErrorShown=false; }
+                catch(err){ console.error('Patch Archive Supabase sync failed:',err); if(!window.__patchCloudSyncErrorShown){window.__patchCloudSyncErrorShown=true; alert('Cloud sync failed: '+(err?.message||err)+'. Your local changes are still kept in this browser.');} }
+                finally { cloudSyncBusy=false; }
+            },250);
+        }
+
+        function renderCloudStatus() {
+            const el=document.getElementById('cloud-sync-status'); if(!el) return;
+            el.style.display='inline-flex';
+            if (cloudReady) { el.className='status-pill cloud-ok'; el.textContent=isAdmin?'CLOUD ADMIN':'CLOUD'; }
+            else { el.className='status-pill cloud-off'; el.textContent='LOCAL ONLY'; }
+        }
+
+        async function initializeSupabaseData() {
+            if (!sbClient) { renderCloudStatus(); return; }
+            try {
+                await sbClient.auth.getSession();
+                const profile=await getCloudAdminProfile();
+                if(profile){ isAdmin=true; document.body.classList.add('admin-mode'); }
+                const localSeed={ products:[...products], bids:[...bids], receipts:[...receipts], categories:[...siteCategories], brands:[...siteBrands], announcement, connectLinks:{...connectLinks}, siteLogo:{...siteLogo} };
+                let cloud=await fetchCloudCollections();
+                const coreCloudEmpty=!cloud.products.length && !cloud.bids.length && !cloud.receipts.length;
+                if (profile && coreCloudEmpty && (localSeed.products.length || localSeed.bids.length || localSeed.receipts.length)) {
+                    await syncAllStoreDataToCloud();
+                    cloud=await fetchCloudCollections();
+                }
+                if (cloudHasStoreData(cloud)) {
+                    applyCloudCollections(cloud);
+                    normalizeCatalogData();
+                    saveData();
+                }
+                cloudInitialLoadDone=true;
+                renderCloudStatus();
+                renderAuthHeader(); renderProducts(); renderGlobalSearchResults(); renderBids(); renderReceipts(); renderAnnouncement(); renderConnect(); applyLogoToSite();
+                if (profile) { populateAdminSelectors(); renderAdminProductManagement(); renderAdminBidManagement(); populateAnnouncementForm(); renderAdminUsersAndLogs(); populateConnectForm(); populateLogoForm(); populateAdminCatalogSelects(); renderCatalogManagers(); renderAdminAllProducts(); }
+            } catch(err){ console.error('Supabase initialization failed:',err); cloudReady=false; renderCloudStatus(); }
+        }
+
+        sbClient?.auth.onAuthStateChange(async (event, session) => {
+            if (event==='SIGNED_OUT') { isAdmin=false; document.body.classList.remove('admin-mode'); renderAuthHeader(); return; }
+            if (session) {
+                const profile=await getCloudAdminProfile();
+                isAdmin=!!profile; document.body.classList.toggle('admin-mode',isAdmin); renderAuthHeader();
+                if(isAdmin && !cloudInitialLoadDone) await initializeSupabaseData();
+            }
+        });
+
         function saveData() {
             const payloads = {
                 patch_users: users,
@@ -2165,6 +2411,7 @@
 
             try {
                 for (const [key, value] of Object.entries(payloads)) writeLocalStorage(key, value);
+                scheduleCloudSync();
                 return true;
             } catch (error) {
                 const quotaError = error && (error.name === 'QuotaExceededError' || /quota|storage/i.test(String(error.message || '')));
@@ -2183,6 +2430,7 @@
                         window.__patchStorageWarningShown = true;
                         setTimeout(() => alert('Browser storage was full. Your Patch Archive data was saved, but locally uploaded image/video files were not kept after reload. For permanent media, use image/video URLs or move uploads to cloud storage.'), 50);
                     }
+                    scheduleCloudSync();
                     return false;
                 } catch (compactError) {
                     console.error('Patch Archive could not save data after storage cleanup:', compactError);
@@ -3168,6 +3416,8 @@
 
         function logoutUser() {
             currentUser = null; saveData(); renderAuthHeader();
+            if (isAdmin && sbClient) sbClient.auth.signOut().catch(console.error);
+            isAdmin=false; document.body.classList.remove('admin-mode'); renderCloudStatus();
         }
 
         function openDetailsModal() {
@@ -3231,14 +3481,28 @@
             } else openModal('admin-login-modal');
         }
 
-        document.getElementById('admin-login-form').addEventListener('submit', (e) => {
+        document.getElementById('admin-login-form').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const u = document.getElementById('admin-user-input').value;
-            const p = document.getElementById('admin-pass-input').value;
-            if (u === adminCreds.username && p === adminCreds.password) {
-                isAdmin = true; document.body.classList.add('admin-mode'); closeModal('admin-login-modal');
-                populateAdminSelectors(); renderAdminProductManagement(); renderAdminBidManagement(); populateAnnouncementForm(); renderAdminUsersAndLogs(); populateConnectForm(); populateLogoForm(); populateAdminCatalogSelects(); renderCatalogManagers(); openModal('admin-dashboard-modal'); renderBids();
-            } else alert('Incorrect Admin Credentials.');
+            const email = document.getElementById('admin-user-input').value.trim().toLowerCase();
+            const password = document.getElementById('admin-pass-input').value;
+            if (!sbClient) return alert('Supabase could not be loaded. Check your internet connection.');
+            try {
+                const { error } = await sbClient.auth.signInWithPassword({ email, password });
+                if (error) return alert('Owner login failed: ' + error.message);
+                const profile = await getCloudAdminProfile();
+                if (!profile) {
+                    await sbClient.auth.signOut();
+                    return alert('This account is not marked as an Owner/Admin in Supabase. Set profiles.is_admin = true for this account first.');
+                }
+                isAdmin = true;
+                document.body.classList.add('admin-mode');
+                closeModal('admin-login-modal');
+                await initializeSupabaseData();
+                populateAdminSelectors(); renderAdminProductManagement(); renderAdminBidManagement(); populateAnnouncementForm(); renderAdminUsersAndLogs(); populateConnectForm(); populateLogoForm(); populateAdminCatalogSelects(); renderCatalogManagers(); renderAdminAllProducts(); openModal('admin-dashboard-modal'); renderBids();
+            } catch (err) {
+                console.error(err);
+                alert('Owner login failed: ' + (err?.message || err));
+            }
         });
 
         function populateAdminSelectors() {
@@ -3451,6 +3715,8 @@
         toggleBidImgSource();
         toggleEditImgSource();
         renderConnect();
+        renderCloudStatus();
+        initializeSupabaseData();
     </script>
 </body>
 </html>
