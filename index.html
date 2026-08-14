@@ -964,6 +964,27 @@
         .log-card { background:#181818; border:1px solid #2a2a2a; border-radius:8px; padding:10px; margin-top:8px; }
         .log-card strong { color:#fff; }
         .log-card small { color:var(--text-muted); display:block; margin-top:4px; }
+        .logo-crop-stage { display:grid; place-items:center; background:repeating-conic-gradient(#1a1a1a 0 25%, #121212 0 50%) 50% / 18px 18px; border:1px solid #333; border-radius:10px; min-height:320px; padding:14px; overflow:hidden; }
+        #logo-crop-canvas { width:min(100%,420px); height:auto; background:transparent; border-radius:8px; display:block; cursor:crosshair; }
+        .logo-shape-options { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+        .logo-shape-option { display:flex; align-items:center; gap:10px; padding:12px; background:#121212; border:1px solid #333; border-radius:9px; cursor:pointer; }
+        .logo-shape-option.active { border-color:var(--primary-red); box-shadow:0 0 0 2px rgba(230,57,70,.12); }
+        .logo-shape-option input { position:absolute; opacity:0; pointer-events:none; }
+        .logo-shape-option strong { color:#fff; display:block; font-size:.82rem; }
+        .logo-shape-option small { display:block; color:var(--text-muted); font-size:.68rem; margin-top:2px; }
+        .shape-icon { width:32px; height:32px; border:2px solid #ddd; display:block; flex:0 0 auto; }
+        .shape-circle { border-radius:50%; }
+        .shape-square { border-radius:4px; }
+        .logo-live-header-preview { display:flex; align-items:center; gap:12px; padding:12px; border:1px solid #333; border-radius:9px; background:#0a0a0a; }
+        .logo-live-header-preview img { width:56px; height:56px; object-fit:cover; border-radius:50%; border:1px solid #444; }
+        .logo-live-header-preview strong { display:block; color:#fff; font-family:'Outfit',sans-serif; font-size:1rem; }
+        .logo-live-header-preview small { display:block; color:var(--primary-red); font-weight:800; letter-spacing:2px; font-size:.55rem; }
+        .favicon-preview { margin-top:6px; display:flex; align-items:center; gap:10px; background:#1a1a1a; border:1px solid #333; border-radius:8px; padding:7px 9px; color:#ddd; font-size:.76rem; }
+        .favicon-preview img { width:22px; height:22px; object-fit:cover; border-radius:50%; }
+        .favicon-preview span:last-child { margin-left:auto; color:#888; font-size:1rem; }
+        .logo-current-image { width:100%; max-height:220px; object-fit:contain; border-radius:10px; background:#090909; border:1px solid #333; padding:8px; }
+        @media (max-width:600px){ .logo-shape-options{grid-template-columns:1fr;} }
+
         @media (max-width:600px) { .detail-thumb{width:58px;height:72px;} .media-list{grid-template-columns:repeat(auto-fill,minmax(76px,1fr));} }
     </style>
 </head>
@@ -973,7 +994,7 @@
     <header>
         <div class="container nav-inner">
             <a href="#" class="brand-logo" onclick="closeNav(); window.scrollTo({top: 0, behavior: 'smooth'}); return false;" aria-label="Patch Archive Home">
-                <img src="logo.png" alt="Patch Archive Thrift Store">
+                <img id="site-brand-logo" src="logo.png" alt="Patch Archive Thrift Store">
                 <span class="admin-indicator" style="display:none;">OWNER MODE</span>
             </a>
             <button class="nav-toggle" type="button" onclick="toggleNav()" aria-label="Open menu">
@@ -1238,6 +1259,7 @@
                 <button class="admin-subtab" id="atab-sec" onclick="switchAdminSubtab('sec')"><i class="fas fa-lock"></i> Security</button>
                 <button class="admin-subtab" id="atab-users" onclick="switchAdminSubtab('users')"><i class="fas fa-users"></i> User Logs</button>
                 <button class="admin-subtab" id="atab-connect" onclick="switchAdminSubtab('connect')"><i class="fas fa-share-nodes"></i> Connect</button>
+                <button class="admin-subtab" id="atab-logo" onclick="switchAdminSubtab('logo')"><i class="fas fa-image"></i> Logo & Branding</button>
             </div>
 
             <!-- Tab 1: Add New Product -->
@@ -1618,6 +1640,76 @@
                 <button type="submit" class="btn btn-gold" style="width:100%;margin-top:12px;">Save Connect Links</button>
             </form>
 
+            <!-- Tab 9: Logo & Branding -->
+            <form id="admin-logo-form" class="admin-tab-content" style="display:none;">
+                <div class="admin-section-divider"><strong style="color:var(--white);">Logo & Branding</strong></div>
+                <p style="font-size:.8rem;color:var(--text-muted);margin-bottom:14px;">Upload your shop logo, crop it, choose a display shape, and preview how it will appear in the main menu.</p>
+                <div class="form-grid-2">
+                    <div>
+                        <div class="media-manager">
+                            <div class="media-manager-title"><strong style="color:var(--white);">1. Upload Logo</strong><span class="status-pill">PNG / JPG / WEBP</span></div>
+                            <input type="file" id="logo-upload-file" accept="image/png,image/jpeg,image/webp,image/gif">
+                            <div class="media-hint">Recommended: a square image, at least 500 × 500 px. Your existing <code>logo.png</code> remains the fallback.</div>
+                        </div>
+                        <div class="media-manager">
+                            <div class="media-manager-title"><strong style="color:var(--white);">2. Crop & Position</strong></div>
+                            <div class="logo-crop-stage" id="logo-crop-stage">
+                                <canvas id="logo-crop-canvas" width="420" height="420"></canvas>
+                            </div>
+                            <div class="form-group" style="margin-top:10px;">
+                                <label>Zoom</label>
+                                <input type="range" id="logo-zoom" min="0.5" max="3" step="0.01" value="1">
+                            </div>
+                            <div class="form-grid-2">
+                                <div class="form-group"><label>Horizontal Position</label><input type="range" id="logo-pos-x" min="-1" max="1" step="0.01" value="0"></div>
+                                <div class="form-group"><label>Vertical Position</label><input type="range" id="logo-pos-y" min="-1" max="1" step="0.01" value="0"></div>
+                            </div>
+                            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                                <button type="button" class="btn btn-dark btn-sm" onclick="rotateLogoCrop(-90)"><i class="fas fa-rotate-left"></i> Rotate Left</button>
+                                <button type="button" class="btn btn-dark btn-sm" onclick="rotateLogoCrop(90)"><i class="fas fa-rotate-right"></i> Rotate Right</button>
+                                <button type="button" class="btn btn-dark btn-sm" onclick="resetLogoCrop()"><i class="fas fa-undo"></i> Reset Crop</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="media-manager">
+                            <div class="media-manager-title"><strong style="color:var(--white);">3. Display Format</strong></div>
+                            <div class="logo-shape-options">
+                                <label class="logo-shape-option active" data-shape="circle">
+                                    <input type="radio" name="logo-shape" value="circle" checked>
+                                    <span class="shape-icon shape-circle"></span>
+                                    <span><strong>Circle</strong><small>Best for your shop icon</small></span>
+                                </label>
+                                <label class="logo-shape-option" data-shape="square">
+                                    <input type="radio" name="logo-shape" value="square">
+                                    <span class="shape-icon shape-square"></span>
+                                    <span><strong>Square</strong><small>Keeps sharp corners</small></span>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="media-manager">
+                            <div class="media-manager-title"><strong style="color:var(--white);">Live Preview</strong><span class="status-pill ok">Live</span></div>
+                            <div class="logo-live-header-preview">
+                                <img id="logo-preview-header" src="logo.png" alt="Header preview">
+                                <div><strong>PATCH ARCHIVE</strong><small>THRIFT STORE</small></div>
+                            </div>
+                            <div class="logo-live-preview-row">
+                                <div><small>Browser Tab</small><div class="favicon-preview"><img id="logo-preview-favicon" src="logo.png" alt="Favicon preview"><span>Patch Archive</span><span>×</span></div></div>
+                            </div>
+                        </div>
+                        <div class="media-manager">
+                            <div class="media-manager-title"><strong style="color:var(--white);">Current Logo</strong></div>
+                            <img id="logo-current-preview" src="logo.png" alt="Current logo" class="logo-current-image">
+                        </div>
+                    </div>
+                </div>
+                <div class="tiny-note">Saving stores the customized logo in this browser. To make it available to every visitor on Vercel, save the final PNG as <code>logo.png</code> in your project files too.</div>
+                <div style="display:flex;gap:10px;margin-top:14px;">
+                    <button type="button" class="btn btn-dark" style="width:50%;" onclick="cancelLogoEdits()">Cancel</button>
+                    <button type="submit" class="btn btn-gold" style="width:50%;"><i class="fas fa-save"></i> Save Logo</button>
+                </div>
+            </form>
+
             <!-- Tab 9: User Logs -->
             <div id="admin-user-logs" class="admin-tab-content" style="display:none;">
                 <div class="admin-section-divider"><strong style="color:var(--white);">Users & Saved Customer Details</strong></div>
@@ -1673,6 +1765,9 @@
             instagram: { label: 'Instagram', url: 'https://instagram.com' },
             email: { label: 'Gmail Contact', url: 'mailto:patcharchive@gmail.com' }
         };
+        let siteLogo = JSON.parse(localStorage.getItem('patch_site_logo')) || { src:'logo.png', shape:'circle' };
+        let logoDraft = { src: siteLogo.src, shape: siteLogo.shape, zoom:1, x:0, y:0, rotate:0, image:null };
+
         let isAdmin = false;
         let currentFilter = 'all';
         let editingSubImages = [];
@@ -1699,6 +1794,7 @@
             localStorage.setItem('patch_pending_verification', JSON.stringify(pendingVerification));
             localStorage.setItem('patch_activity_logs', JSON.stringify(activityLogs));
             localStorage.setItem('patch_connect_links', JSON.stringify(connectLinks));
+            localStorage.setItem('patch_site_logo', JSON.stringify(siteLogo));
         }
 
         function safeText(value) {
@@ -1732,6 +1828,83 @@
                 container.innerHTML = `<button class="btn" onclick="openModal('auth-modal')"><i class="fas fa-user"></i> Log In</button>`;
             }
         }
+
+
+        function applyLogoToSite() {
+            const src = siteLogo?.src || 'logo.png';
+            const shape = siteLogo?.shape === 'square' ? 'square' : 'circle';
+            const img = document.getElementById('site-brand-logo');
+            if (img) { img.src = src; img.style.borderRadius = shape === 'circle' ? '50%' : '0'; }
+            const favicon = document.querySelector('link[rel="icon"]');
+            const apple = document.querySelector('link[rel="apple-touch-icon"]');
+            if (favicon) favicon.href = src;
+            if (apple) apple.href = src;
+            const header = document.getElementById('logo-preview-header');
+            const fav = document.getElementById('logo-preview-favicon');
+            const current = document.getElementById('logo-current-preview');
+            [header,current].forEach(el => { if (el) { el.src=src; el.style.borderRadius=shape==='circle'?'50%':'8px'; } });
+            if (fav) fav.src=src;
+            document.querySelectorAll('.logo-shape-option').forEach(el => el.classList.toggle('active', el.dataset.shape===shape));
+            const radio=document.querySelector(`input[name="logo-shape"][value="${shape}"]`); if(radio) radio.checked=true;
+        }
+
+        function logoCropCtx() { return document.getElementById('logo-crop-canvas').getContext('2d'); }
+        function resetLogoCrop(){ logoDraft.zoom=1; logoDraft.x=0; logoDraft.y=0; logoDraft.rotate=0; ['logo-zoom','logo-pos-x','logo-pos-y'].forEach(id=>document.getElementById(id).value=id==='logo-zoom'?1:0); drawLogoCrop(); }
+        function rotateLogoCrop(deg){ logoDraft.rotate=(logoDraft.rotate+deg)%360; drawLogoCrop(); }
+        function drawLogoCrop(){
+            const canvas=document.getElementById('logo-crop-canvas'); if(!canvas) return;
+            const ctx=canvas.getContext('2d'); const size=canvas.width; ctx.clearRect(0,0,size,size);
+            ctx.save();
+            if(logoDraft.shape==='circle'){ ctx.beginPath(); ctx.arc(size/2,size/2,size/2-4,0,Math.PI*2); ctx.clip(); }
+            const img=logoDraft.image;
+            if(img){
+                const base=Math.max(size/img.naturalWidth, size/img.naturalHeight);
+                const scale=base*Number(logoDraft.zoom||1);
+                const w=img.naturalWidth*scale, h=img.naturalHeight*scale;
+                ctx.translate(size/2 + Number(logoDraft.x||0)*(size/2), size/2 + Number(logoDraft.y||0)*(size/2));
+                ctx.rotate((Number(logoDraft.rotate)||0)*Math.PI/180);
+                ctx.drawImage(img,-w/2,-h/2,w,h);
+            } else {
+                ctx.fillStyle='#090909'; ctx.fillRect(0,0,size,size); ctx.fillStyle='#666'; ctx.font='700 16px Space Grotesk'; ctx.textAlign='center'; ctx.fillText('Upload a logo to begin',size/2,size/2);
+            }
+            ctx.restore();
+            ctx.save(); ctx.strokeStyle='rgba(255,255,255,.32)'; ctx.lineWidth=1; ctx.strokeRect(8,8,size-16,size-16); if(logoDraft.shape==='circle'){ctx.beginPath();ctx.arc(size/2,size/2,size/2-8,0,Math.PI*2);ctx.stroke();} ctx.restore();
+        }
+        function loadLogoImage(src, forDraft=true){
+            const img=new Image(); img.onload=()=>{ if(forDraft) logoDraft.image=img; drawLogoCrop(); }; img.onerror=()=>{ if(forDraft) logoDraft.image=null; drawLogoCrop(); }; img.src=src;
+        }
+        function populateLogoForm(){
+            logoDraft={src:siteLogo?.src||'logo.png', shape:siteLogo?.shape||'circle', zoom:1,x:0,y:0,rotate:0,image:null};
+            document.getElementById('logo-upload-file').value='';
+            loadLogoImage(logoDraft.src);
+            applyLogoToSite(); drawLogoCrop();
+        }
+        function cancelLogoEdits(){ populateLogoForm(); switchAdminSubtab('add'); }
+        document.querySelectorAll('input[name="logo-shape"]').forEach(r=>r.addEventListener('change',()=>{ logoDraft.shape=r.value; drawLogoCrop(); document.querySelectorAll('.logo-shape-option').forEach(el=>el.classList.toggle('active',el.dataset.shape===r.value)); }));
+        document.getElementById('logo-upload-file').addEventListener('change',(e)=>{
+            const file=e.target.files?.[0]; if(!file) return;
+            if(file.size>6*1024*1024) return alert('Please keep the logo file at 6 MB or smaller.');
+            const reader=new FileReader(); reader.onload=ev=>{ logoDraft.src=ev.target.result; loadLogoImage(logoDraft.src); }; reader.readAsDataURL(file);
+        });
+        ['logo-zoom','logo-pos-x','logo-pos-y'].forEach(id=>document.getElementById(id)?.addEventListener('input',()=>{
+            logoDraft.zoom=Number(document.getElementById('logo-zoom').value); logoDraft.x=Number(document.getElementById('logo-pos-x').value); logoDraft.y=Number(document.getElementById('logo-pos-y').value); drawLogoCrop();
+        }));
+        document.getElementById('admin-logo-form').addEventListener('submit',(e)=>{
+            e.preventDefault();
+            // Export the edited canvas at a clean square resolution. The display shape is preserved as a transparent circle when selected.
+            const canvas=document.getElementById('logo-crop-canvas');
+            const out=document.createElement('canvas'); out.width=700; out.height=700; const ctx=out.getContext('2d');
+            ctx.clearRect(0,0,out.width,out.height);
+            if(logoDraft.shape==='circle'){ctx.beginPath();ctx.arc(350,350,350,0,Math.PI*2);ctx.clip();}
+            const img=logoDraft.image;
+            if(!img) return alert('Please upload or load a logo before saving.');
+            const base=Math.max(out.width/img.naturalWidth,out.height/img.naturalHeight); const scale=base*Number(logoDraft.zoom||1);
+            const w=img.naturalWidth*scale,h=img.naturalHeight*scale;
+            ctx.save(); ctx.translate(350+Number(logoDraft.x||0)*350,350+Number(logoDraft.y||0)*350); ctx.rotate((Number(logoDraft.rotate)||0)*Math.PI/180); ctx.drawImage(img,-w/2,-h/2,w,h); ctx.restore();
+            const data=out.toDataURL('image/png');
+            siteLogo={src:data,shape:logoDraft.shape}; saveData(); applyLogoToSite(); populateLogoForm();
+            alert('Logo saved. It is now applied to the header and browser icon on this device.');
+        });
 
         function normalizeConnectUrl(value) {
             const raw = String(value || '').trim();
@@ -2190,7 +2363,7 @@
         });
 
         function switchAdminSubtab(tab) {
-            const ids = ['add','manage','bid','edit','ann','rec','sec','users','connect'];
+            const ids = ['add','manage','bid','edit','ann','rec','sec','users','connect','logo'];
             ids.forEach(t => {
                 const btn = document.getElementById(`atab-${t}`);
                 if (btn) btn.classList.toggle('active', t === tab);
@@ -2198,15 +2371,16 @@
             document.querySelectorAll('.admin-tab-content').forEach(el => el.style.display = 'none');
             const targetMap = {
                 add: 'admin-product-form', manage: 'admin-manage-products', bid: 'admin-bid-panel', edit: 'admin-edit-product-form',
-                ann: 'admin-announcement-form', rec: 'admin-receipt-form', sec: 'admin-creds-form', users: 'admin-user-logs', connect: 'admin-connect-form'
+                ann: 'admin-announcement-form', rec: 'admin-receipt-form', sec: 'admin-creds-form', users: 'admin-user-logs', connect: 'admin-connect-form', logo: 'admin-logo-form'
             };
             const target = document.getElementById(targetMap[tab]);
-            if (target) target.style.display = ['bid','add','manage','edit','ann','rec','sec','users','connect'].includes(tab) ? 'block' : 'none';
+            if (target) target.style.display = ['bid','add','manage','edit','ann','rec','sec','users','connect','logo'].includes(tab) ? 'block' : 'none';
             if (tab === 'manage') renderAdminProductManagement();
             if (tab === 'bid') { populateAdminSelectors(); renderAdminBidManagement(); }
             if (tab === 'ann') populateAnnouncementForm();
             if (tab === 'users') renderAdminUsersAndLogs();
             if (tab === 'connect') populateConnectForm();
+            if (tab === 'logo') populateLogoForm();
         }
 
         // Product image source toggle
@@ -2480,7 +2654,7 @@
         // Crown Admin
         function triggerAdminModal() {
             if (isAdmin) {
-                populateAdminSelectors(); renderAdminProductManagement(); renderAdminBidManagement(); populateAnnouncementForm(); renderAdminUsersAndLogs(); populateConnectForm(); openModal('admin-dashboard-modal');
+                populateAdminSelectors(); renderAdminProductManagement(); renderAdminBidManagement(); populateAnnouncementForm(); renderAdminUsersAndLogs(); populateConnectForm(); populateLogoForm(); openModal('admin-dashboard-modal');
             } else openModal('admin-login-modal');
         }
 
@@ -2490,7 +2664,7 @@
             const p = document.getElementById('admin-pass-input').value;
             if (u === adminCreds.username && p === adminCreds.password) {
                 isAdmin = true; document.body.classList.add('admin-mode'); closeModal('admin-login-modal');
-                populateAdminSelectors(); renderAdminProductManagement(); renderAdminBidManagement(); populateAnnouncementForm(); renderAdminUsersAndLogs(); populateConnectForm(); openModal('admin-dashboard-modal'); renderBids();
+                populateAdminSelectors(); renderAdminProductManagement(); renderAdminBidManagement(); populateAnnouncementForm(); renderAdminUsersAndLogs(); populateConnectForm(); populateLogoForm(); openModal('admin-dashboard-modal'); renderBids();
             } else alert('Incorrect Admin Credentials.');
         });
 
@@ -2614,6 +2788,7 @@
         isAdmin = false;
         document.body.classList.remove('admin-mode');
         document.querySelectorAll('.admin-indicator').forEach(el => el.style.display = 'none');
+        applyLogoToSite();
         renderAuthHeader();
         renderProducts();
         renderBids();
