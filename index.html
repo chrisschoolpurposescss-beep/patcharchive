@@ -1189,7 +1189,7 @@
                 <a class="nav-main-link" href="#receipts" onclick="closeNav()">Receipt</a>
                 <a class="nav-main-link" href="#connect" onclick="closeNav()">Connect</a>
                 <div id="auth-nav-container"></div>
-                <span id="cloud-sync-status" class="status-pill" style="margin-left:8px;display:none;">Cloud</span>
+                <span id="header-cloud-sync-status" class="status-pill" style="margin-left:8px;display:none;">Cloud</span>
             </nav>
         </div>
     </header>
@@ -1424,7 +1424,7 @@
                 <div class="form-group">
                     <label>Owner Email</label>
                     <input type="text" id="admin-user-input" placeholder="admin" required>
-                    <div class="tiny-note">Use the Patch Archive owner email and password you created in Supabase. No verification code is required for the owner login.</div>
+                    <div class="tiny-note">Owner login is local to the admin session. Storefront data is stored in Supabase and shared with all shoppers.</div>
                 </div>
                 <div class="form-group">
                     <label>Admin Password</label>
@@ -1445,9 +1445,10 @@
             <span class="close-modal" onclick="closeModal('admin-dashboard-modal')">&times;</span>
             <h3 style="color: var(--gold);"><i class="fas fa-crown"></i> Owner Control Panel</h3>
             <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:10px 0 14px;padding:10px;background:#151515;border:1px solid #2a2a2a;border-radius:10px;">
-                <button type="button" class="btn btn-gold btn-sm" onclick="publishStoreNow()"><i class="fas fa-cloud-arrow-up"></i> Publish Changes</button>
+                <button type="button" class="btn btn-gold btn-sm" onclick="publishStoreNow()"><i class="fas fa-cloud-arrow-up"></i> Save & Publish</button>
                 <button type="button" class="btn btn-dark btn-sm" onclick="testSharedStore()"><i class="fas fa-plug"></i> Test Shared Store</button>
-                <span id="cloud-sync-status" class="status-pill cloud-off">CONNECTING...</span>
+                <span id="cloud-sync-status" class="status-pill cloud-off">LOADING STORE</span>
+                <span style="font-size:.78rem;color:var(--text-muted);">Live cloud store — changes are shared with shoppers.</span>
             </div>
             
             <!-- Sub-navigation tabs inside Admin Panel -->
@@ -2053,66 +2054,86 @@
             ownerTemplateId: "YOUR_EMAILJS_OWNER_TEMPLATE_ID"
         };
 
-        let users = JSON.parse(localStorage.getItem('patch_users')) || defaultUsers;
-        let products = JSON.parse(localStorage.getItem('patch_products')) || defaultProducts;
-        let bids = JSON.parse(localStorage.getItem('patch_bids')) || defaultBids;
-        bids = bids.map(b => ({ ...b, subImages: Array.isArray(b.subImages) ? b.subImages : [], subVideos: Array.isArray(b.subVideos) ? b.subVideos : [] }));
-        let receipts = JSON.parse(localStorage.getItem('patch_receipts')) || defaultReceipts;
-        receipts = receipts.map(r => ({ ...r, mediaType: r.mediaType || 'image', mediaSrc: r.mediaSrc || r.img || '', details: r.details || '' }));
-        let announcement = JSON.parse(localStorage.getItem('patch_announcement')) || null;
-        let adminCreds = JSON.parse(localStorage.getItem('patch_admin_creds')) || { username: "admin", password: "123" };
-        let currentUser = JSON.parse(localStorage.getItem('patch_current_user')) || null;
-        let pendingVerification = JSON.parse(localStorage.getItem('patch_pending_verification')) || null;
-        let activityLogs = JSON.parse(localStorage.getItem('patch_activity_logs')) || [];
-        let connectLinks = JSON.parse(localStorage.getItem('patch_connect_links')) || {
+        // CLOUD-ONLY STORE STATE
+        // Storefront data is never persisted to localStorage. Supabase is the source of truth.
+        let users = [...defaultUsers];
+        let products = [];
+        let bids = [];
+        let receipts = [];
+        let announcement = null;
+        let adminCreds = { username: "admin", password: "123" };
+        let currentUser = null;
+        let pendingVerification = null;
+        let activityLogs = [];
+        let connectLinks = {
             facebook: { label: 'Facebook DM', url: 'https://facebook.com' },
             instagram: { label: 'Instagram', url: 'https://instagram.com' },
             email: { label: 'Gmail Contact', url: 'mailto:patcharchive@gmail.com' }
         };
-        let siteLogo = JSON.parse(localStorage.getItem('patch_site_logo')) || { src:'logo.png', shape:'circle' };
+        let siteLogo = { src:'logo.png', shape:'circle' };
         let logoDraft = { src: siteLogo.src, shape: siteLogo.shape, zoom:1, x:0, y:0, rotate:0, image:null };
 
         let isAdmin = false;
         let currentFilter = 'all';
         let currentSearch = '';
         let currentBrandFilter = 'all';
-        let siteCategories = JSON.parse(localStorage.getItem('patch_site_categories')) || [
+        let siteCategories = [
             { id:'t-shirt', name:'T Shirt' },
             { id:'bags', name:'Bags' },
             { id:'womens', name:"Women's Wear" },
             { id:'shorts', name:'Shorts' },
             { id:'pants', name:'Pants' }
         ];
-        let siteBrands = JSON.parse(localStorage.getItem('patch_site_brands')) || [];
+        let siteBrands = [];
         let editingSubImages = [];
         let editingSubVideos = [];
         const productMediaTimers = new Map();
         const bidMediaTimers = new Map();
+        let legacyMigrationChecked = false;
 
-        products = products.map(p => ({ ...p, subImages: Array.isArray(p.subImages) ? p.subImages : [] }));
-        bids = bids.map(b => ({ ...b, subImages: Array.isArray(b.subImages) ? b.subImages : [] }));
-        users = users.map(u => ({ ...u, facebookName: u.facebookName || '', shippingAddress: u.shippingAddress || '', detailsUpdatedAt: u.detailsUpdatedAt || '' }));
-
-        const LEGACY_CATEGORY_MAP = { 'vintage-shirts':'t-shirt', 'jorts':'shorts' };
-        const LEGACY_CATEGORY_LABELS = { 'vintage-shirts':'T Shirt', 'jorts':'Shorts' };
-        function normalizeCategoryValue(value) { const v=String(value||'').trim(); return LEGACY_CATEGORY_MAP[v] || v; }
-        function getCategoryName(value) { const v=normalizeCategoryValue(value); const item=siteCategories.find(c=>c.id===v); return item ? item.name : (LEGACY_CATEGORY_LABELS[v] || v || 'Uncategorized'); }
-        function compactExistingStorage() {
-            try {
-                const raw = localStorage.getItem('patch_bids');
-                if (!raw) return;
-                const parsed = JSON.parse(raw);
-                const compact = compactForStorage(parsed);
-                if (JSON.stringify(compact).length < raw.length * 0.9) {
-                    localStorage.removeItem('patch_bids');
-                    localStorage.setItem('patch_bids', JSON.stringify(compact));
-                }
-            } catch (error) {
-                console.warn('Could not compact existing bid storage:', error);
-            }
+        function normalizeRuntimeData() {
+            products = (Array.isArray(products) ? products : []).map(p => ({ ...p, subImages: Array.isArray(p.subImages) ? p.subImages : [], subVideos: Array.isArray(p.subVideos) ? p.subVideos : [] }));
+            bids = (Array.isArray(bids) ? bids : []).map(b => ({ ...b, subImages: Array.isArray(b.subImages) ? b.subImages : [], subVideos: Array.isArray(b.subVideos) ? b.subVideos : [] }));
+            receipts = (Array.isArray(receipts) ? receipts : []).map(r => ({ ...r, mediaType: r.mediaType || 'image', mediaSrc: r.mediaSrc || r.img || '', details: r.details || '' }));
+            users = (Array.isArray(users) ? users : []).map(u => ({ ...u, facebookName: u.facebookName || '', shippingAddress: u.shippingAddress || '', detailsUpdatedAt: u.detailsUpdatedAt || '' }));
+            logoDraft = { src: siteLogo.src, shape: siteLogo.shape || 'circle', zoom:1, x:0, y:0, rotate:0, image:null };
         }
 
-        compactExistingStorage();
+        // One-time migration helper. It reads the previous browser-only catalog ONLY when the owner logs in,
+        // publishes it to Supabase, then permanently removes the old browser keys.
+        function migrateLegacyBrowserDataOnce() {
+            if (legacyMigrationChecked) return false;
+            legacyMigrationChecked = true;
+            const legacyKeys = ['patch_products','patch_bids','patch_receipts','patch_announcement','patch_connect_links','patch_site_logo','patch_site_categories','patch_site_brands'];
+            let imported = false;
+            try {
+                const parse = key => { const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : null; };
+                const lp = parse('patch_products');
+                const lb = parse('patch_bids');
+                const lr = parse('patch_receipts');
+                const la = parse('patch_announcement');
+                const lc = parse('patch_connect_links');
+                const ll = parse('patch_site_logo');
+                const lcat = parse('patch_site_categories');
+                const lbrand = parse('patch_site_brands');
+                if (Array.isArray(lp) && lp.length) { products = lp; imported = true; }
+                if (Array.isArray(lb) && lb.length) { bids = lb; imported = true; }
+                if (Array.isArray(lr) && lr.length) { receipts = lr; imported = true; }
+                if (la) { announcement = la; imported = true; }
+                if (lc && typeof lc === 'object') { connectLinks = lc; imported = true; }
+                if (ll && typeof ll === 'object') { siteLogo = ll; imported = true; }
+                if (Array.isArray(lcat) && lcat.length) { siteCategories = lcat; imported = true; }
+                if (Array.isArray(lbrand)) { siteBrands = lbrand; imported = imported || lbrand.length > 0; }
+                normalizeRuntimeData();
+                if (imported) console.info('[Patch Archive] Migrating legacy browser catalog to Supabase once.');
+                // Delete the old persistent storefront cache. The cloud is now the source of truth.
+                legacyKeys.forEach(k => { try { localStorage.removeItem(k); } catch (_) {} });
+                return imported;
+            } catch (err) {
+                console.warn('[Patch Archive] Legacy migration skipped:', err);
+                return false;
+            }
+        }
 
         function normalizeCatalogData() {
             siteCategories = siteCategories.filter(c=>c && c.id && c.name).map(c=>({id:String(c.id),name:String(c.name).trim()}));
@@ -2122,7 +2143,6 @@
             bids = bids.map(b=>({...b, category:normalizeCategoryValue(b.category), brand:String(b.brand||'').trim()}));
             const existing=new Set(siteCategories.map(c=>c.id));
             products.concat(bids).forEach(item=>{ const cat=normalizeCategoryValue(item.category); if(cat && !existing.has(cat)){ siteCategories.push({id:cat,name:cat.replace(/-/g,' ').replace(/\b\w/g,m=>m.toUpperCase())}); existing.add(cat); } });
-            saveData();
         }
         normalizeCatalogData();
 
@@ -2130,37 +2150,7 @@
             emailjs.init({ publicKey: EMAILJS_CONFIG.publicKey, limitRate: { id: 'patch-archive', throttle: 1000 } });
         }
 
-        // localStorage is small. Uploaded image/video files are converted to data URLs, which can fill the browser quota quickly.
-        // Keep external URLs, but compact local uploads when storage is full so normal site data can still save.
-        function compactMediaValue(value) {
-            if (typeof value !== 'string') return value;
-            // Local uploads are data URLs. They are the main source of quota exhaustion.
-            return value.startsWith('data:') ? '' : value;
-        }
-
-        function compactForStorage(value) {
-            if (Array.isArray(value)) return value.map(compactForStorage);
-            if (value && typeof value === 'object') {
-                const out = {};
-                for (const [key, val] of Object.entries(value)) {
-                    if (['img','mediaSrc'].includes(key)) {
-                        out[key] = compactMediaValue(val);
-                    } else if (['subImages','subVideos'].includes(key) && Array.isArray(val)) {
-                        out[key] = val.filter(v => typeof v === 'string' && !v.startsWith('data:'));
-                    } else {
-                        out[key] = compactForStorage(val);
-                    }
-                }
-                return out;
-            }
-            return value;
-        }
-
-        function writeLocalStorage(key, value) {
-            localStorage.setItem(key, JSON.stringify(value));
-        }
-
-        // Supabase is used ONLY as the shared store database. Owner login stays local.
+        // SUPABASE IS THE ONLY PERSISTENT STOREFRONT DATA STORE. Owner login is an in-memory admin gate.
         const SUPABASE_URL = 'https://efjgiiiavspvymwxutjj.supabase.co';
         const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_qmit_A7cfBeXCpueM09hcQ_k2IINZ9d';
         const sbClient = (window.supabase && typeof window.supabase.createClient === 'function')
@@ -2178,15 +2168,15 @@
         // Shared public storefront state. Admin login remains local; Supabase stores only public shop data.
         function getPublicStoreState() {
             return {
-                version: 1,
-                products: products,
-                bids: bids,
-                receipts: receipts,
-                categories: siteCategories,
-                brands: siteBrands,
-                announcement: announcement,
-                connectLinks: connectLinks,
-                siteLogo: siteLogo
+                version: 2,
+                products: Array.isArray(products) ? products : [],
+                bids: Array.isArray(bids) ? bids : [],
+                receipts: Array.isArray(receipts) ? receipts : [],
+                categories: Array.isArray(siteCategories) ? siteCategories : [],
+                brands: Array.isArray(siteBrands) ? siteBrands : [],
+                announcement: announcement || null,
+                connectLinks: connectLinks || {},
+                siteLogo: siteLogo || { src:'logo.png', shape:'circle' }
             };
         }
 
@@ -2212,28 +2202,52 @@
         async function loadPublicStoreState() {
             const rows = await supabaseRest('site_settings?select=setting_value&setting_key=eq.store_state&limit=1', { method:'GET' });
             const state = Array.isArray(rows) ? rows[0]?.setting_value : null;
-            if (!state || typeof state !== 'object') return false;
-            products = Array.isArray(state.products) ? state.products : products;
-            bids = Array.isArray(state.bids) ? state.bids : bids;
-            receipts = Array.isArray(state.receipts) ? state.receipts : receipts;
-            siteCategories = Array.isArray(state.categories) ? state.categories : siteCategories;
-            siteBrands = Array.isArray(state.brands) ? state.brands : siteBrands;
-            announcement = state.announcement ?? announcement;
+            const valid = state && typeof state === 'object' && Array.isArray(state.products) && Array.isArray(state.bids) && Array.isArray(state.categories);
+            if (!valid) return false;
+            products = state.products;
+            bids = state.bids;
+            receipts = Array.isArray(state.receipts) ? state.receipts : [];
+            siteCategories = state.categories;
+            siteBrands = Array.isArray(state.brands) ? state.brands : [];
+            announcement = state.announcement ?? null;
             connectLinks = state.connectLinks || connectLinks;
             siteLogo = state.siteLogo || siteLogo;
+            normalizeRuntimeData();
             normalizeCatalogData();
             return true;
         }
 
         async function savePublicStoreState() {
             const payload = { setting_key: 'store_state', setting_value: getPublicStoreState(), updated_at: new Date().toISOString() };
-            await supabaseRest('site_settings?on_conflict=setting_key', {
-                method:'POST',
-                headers:{'Prefer':'resolution=merge-duplicates,return=representation'},
-                body: JSON.stringify([payload])
+            // Use PATCH first because the row already exists. Fall back to INSERT if it does not.
+            const encodedKey = encodeURIComponent('store_state');
+            const updateResult = await fetch(SUPABASE_URL + '/rest/v1/site_settings?setting_key=eq.' + encodedKey, {
+                method:'PATCH',
+                headers:{
+                    apikey: SUPABASE_PUBLISHABLE_KEY,
+                    'Content-Type':'application/json',
+                    'Prefer':'return=representation'
+                },
+                body: JSON.stringify({ setting_value: payload.setting_value, updated_at: payload.updated_at })
             });
+            const updateText = await updateResult.text();
+            if (!updateResult.ok) {
+                let detail = updateText;
+                try { detail = JSON.parse(updateText)?.message || detail; } catch (_) {}
+                throw new Error('Store update failed: ' + (detail || ('HTTP ' + updateResult.status)));
+            }
+            let updatedRows = null;
+            try { updatedRows = updateText ? JSON.parse(updateText) : null; } catch (_) {}
+            if (!Array.isArray(updatedRows) || updatedRows.length === 0) {
+                await supabaseRest('site_settings', {
+                    method:'POST',
+                    headers:{ 'Prefer':'return=representation' },
+                    body: JSON.stringify([payload])
+                });
+            }
             cloudReady = true;
             renderCloudStatus();
+            return true;
         }
 
         async function publishStoreNow(showAlert = true) {
@@ -2241,8 +2255,12 @@
             try {
                 const status = document.getElementById('cloud-sync-status');
                 if (status) status.textContent='PUBLISHING...';
+                cloudWriteVersion++;
+                clearTimeout(cloudSyncTimer);
+                await cloudWriteQueue;
                 await savePublicStoreState();
                 cloudInitialLoadDone = true;
+                cloudReady = true;
                 if (status) { status.textContent='SYNC ON'; status.className='status-pill cloud-ok'; }
                 if (showAlert) alert('Published successfully. Shoppers can now see the latest store data.');
                 return true;
@@ -2432,94 +2450,121 @@
         }
 
         let cloudSyncTimer=null;
+        let cloudWriteQueue=Promise.resolve();
+        let cloudWriteVersion=0;
+
+        function setCloudStatusText(text, ok=true) {
+            const el=document.getElementById('cloud-sync-status'); if(!el) return;
+            el.style.display='inline-flex';
+            el.className = ok ? 'status-pill cloud-ok' : 'status-pill cloud-off';
+            el.textContent = text;
+        }
+
         function scheduleCloudSync() {
-            if (!isAdmin) return;
+            if (!isAdmin || !sbClient || !cloudInitialLoadDone) return;
             clearTimeout(cloudSyncTimer);
-            cloudSyncTimer=setTimeout(async()=>{
-                if(cloudSyncBusy) return;
-                cloudSyncBusy=true;
-                try { await savePublicStoreState(); window.__patchCloudSyncErrorShown=false; }
-                catch(err){ console.error('Patch Archive shared-store sync failed:',err); if(!window.__patchCloudSyncErrorShown){window.__patchCloudSyncErrorShown=true; alert('Cloud sync failed: '+(err?.message||err));} }
-                finally { cloudSyncBusy=false; }
-            },150);
+            const version = ++cloudWriteVersion;
+            cloudSyncTimer = setTimeout(() => {
+                cloudWriteQueue = cloudWriteQueue.then(async () => {
+                    if (version !== cloudWriteVersion) return;
+                    try {
+                        setCloudStatusText('SAVING...', true);
+                        await savePublicStoreState();
+                        if (version === cloudWriteVersion) {
+                            setCloudStatusText('SYNC ON', true);
+                            window.__patchCloudSyncErrorShown=false;
+                        }
+                    } catch (err) {
+                        console.error('Patch Archive shared-store sync failed:', err);
+                        setCloudStatusText('SYNC ERROR', false);
+                        if (!window.__patchCloudSyncErrorShown) {
+                            window.__patchCloudSyncErrorShown=true;
+                            alert('Cloud sync failed: ' + (err?.message||err));
+                        }
+                    }
+                });
+            }, 250);
         }
 
         function renderCloudStatus() {
             const el=document.getElementById('cloud-sync-status'); if(!el) return;
             el.style.display='inline-flex';
-            if (cloudReady) { el.className='status-pill cloud-ok'; el.textContent=isAdmin?'SYNC ON':'SHARED'; }
-            else { el.className='status-pill cloud-off'; el.textContent='LOCAL ONLY'; }
+            if (cloudReady) { el.className='status-pill cloud-ok'; el.textContent=isAdmin?'SYNC ON':'CLOUD STORE'; }
+            else { el.className='status-pill cloud-off'; el.textContent=cloudInitialLoadDone?'SYNC OFF':'LOADING STORE'; }
         }
 
         async function initializeSupabaseData() {
             try {
                 cloudReady = false;
+                cloudInitialLoadDone = false;
                 renderCloudStatus();
+
+                // Always try the live cloud state first. Never use local storage as the public catalog.
                 const loaded = await loadPublicStoreState();
-                if (!loaded && isAdmin) {
+
+                if (!loaded) {
+                    // If the existing row is missing/invalid, bootstrap the cloud store exactly once.
+                    // Admins get first priority and can migrate any legacy browser catalog that still exists.
+                    if (isAdmin) {
+                        const migrated = migrateLegacyBrowserDataOnce();
+                        normalizeRuntimeData();
+                        normalizeCatalogData();
+                        if (!migrated && !products.length && !bids.length && !receipts.length) {
+                            products = [...defaultProducts];
+                            bids = [...defaultBids];
+                            receipts = [...defaultReceipts];
+                            normalizeRuntimeData();
+                            normalizeCatalogData();
+                        }
+                    } else {
+                        // A first-time public visitor still needs a valid live store.
+                        // Seed the cloud with the site's bundled starter catalog if no valid store exists yet.
+                        products = [...defaultProducts];
+                        bids = [...defaultBids];
+                        receipts = [...defaultReceipts];
+                        normalizeRuntimeData();
+                        normalizeCatalogData();
+                    }
+
                     await savePublicStoreState();
+                    // Re-read the just-published state so the page always renders exactly what is in Supabase.
+                    const confirmed = await loadPublicStoreState();
+                    if (!confirmed) throw new Error('Supabase accepted the write but returned no valid store state.');
                 }
+
                 cloudReady = true;
                 cloudInitialLoadDone = true;
                 renderCloudStatus();
-                renderProducts(); renderGlobalSearchResults(); renderBids(); renderReceipts(); renderAnnouncement(); renderConnect(); applyLogoToSite();
-                if (isAdmin) { renderAdminProductManagement(); renderAdminBidManagement(); renderAdminAllProducts(); renderCatalogManagers(); }
+                populateShopFilters();
+                renderProducts();
+                renderGlobalSearchResults();
+                renderBids();
+                renderReceipts();
+                renderAnnouncement();
+                renderConnect();
+                applyLogoToSite();
+                if (isAdmin) {
+                    renderAdminProductManagement();
+                    renderAdminBidManagement();
+                    renderAdminAllProducts();
+                    renderCatalogManagers();
+                }
             } catch (err) {
                 console.error('Supabase shared-store load failed:', err);
                 cloudReady = false;
+                cloudInitialLoadDone = false;
                 renderCloudStatus();
+                const grid = document.getElementById('product-grid');
+                if (grid) grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--text-muted);padding:40px;">Live store could not be loaded. Please refresh.</div>';
             }
         }
 
         function saveData() {
-            const payloads = {
-                patch_users: users,
-                patch_products: products,
-                patch_bids: bids,
-                patch_receipts: receipts,
-                patch_announcement: announcement,
-                patch_admin_creds: adminCreds,
-                patch_current_user: currentUser,
-                patch_pending_verification: pendingVerification,
-                patch_activity_logs: activityLogs,
-                patch_connect_links: connectLinks,
-                patch_site_logo: siteLogo,
-                patch_site_categories: siteCategories,
-                patch_site_brands: siteBrands
-            };
-
-            try {
-                for (const [key, value] of Object.entries(payloads)) writeLocalStorage(key, value);
-                scheduleCloudSync();
-                return true;
-            } catch (error) {
-                const quotaError = error && (error.name === 'QuotaExceededError' || /quota|storage/i.test(String(error.message || '')));
-                if (!quotaError) throw error;
-
-                // Re-save using a compact copy that drops browser-uploaded data URLs but keeps normal URLs.
-                const compactPayloads = compactForStorage(payloads);
-                try {
-                    // Remove the largest potentially-full keys before replacing them with compact versions.
-                    ['patch_bids','patch_products','patch_receipts','patch_announcement','patch_site_logo'].forEach(k => {
-                        try { localStorage.removeItem(k); } catch (_) {}
-                    });
-                    for (const [key, value] of Object.entries(compactPayloads)) writeLocalStorage(key, value);
-                    console.warn('Patch Archive storage was full. Local uploaded media was excluded from persistent browser storage; URL-based media remains saved.');
-                    if (!window.__patchStorageWarningShown) {
-                        window.__patchStorageWarningShown = true;
-                        setTimeout(() => alert('Browser storage was full. Your Patch Archive data was saved, but locally uploaded image/video files were not kept after reload. For permanent media, use image/video URLs or move uploads to cloud storage.'), 50);
-                    }
-                    scheduleCloudSync();
-                    return false;
-                } catch (compactError) {
-                    console.error('Patch Archive could not save data after storage cleanup:', compactError);
-                    if (!window.__patchStorageWarningShown) {
-                        window.__patchStorageWarningShown = true;
-                        setTimeout(() => alert('Browser storage is full. Remove some old site data or uploaded media, then try again.'), 50);
-                    }
-                    return false;
-                }
-            }
+            // Storefront data is live-cloud data. No products, bids, receipts, announcements,
+            // categories, brands, Connect links, or logo settings are persisted locally.
+            normalizeRuntimeData();
+            scheduleCloudSync();
+            return true;
         }
 
         function safeText(value) {
@@ -2853,7 +2898,14 @@
         }
 
         function renderProducts() {
-            const grid=document.getElementById('product-grid'); clearProductMediaTimers(); populateShopFilters(); grid.innerHTML='';
+            const grid=document.getElementById('product-grid');
+            if (!grid) return;
+            if (!cloudInitialLoadDone) {
+                clearProductMediaTimers();
+                grid.innerHTML='<div style="grid-column:1/-1;text-align:center;color:var(--text-muted);padding:40px;">Loading live store…</div>';
+                return;
+            }
+            clearProductMediaTimers(); populateShopFilters(); grid.innerHTML='';
             const filtered=products.filter(productMatchesFilters);
             const summary=document.getElementById('shop-filter-summary'); if(summary) summary.textContent=`Showing ${filtered.length} of ${products.length} posted shop product${products.length===1?'':'s'}.`;
             if(!filtered.length){ grid.innerHTML='<div style="grid-column:1/-1;text-align:center;color:var(--text-muted);padding:30px;">No products match your search or filters.</div>'; return; }
@@ -3562,7 +3614,7 @@
 
 
 
-        document.getElementById('admin-login-form').addEventListener('submit', (e) => {
+        document.getElementById('admin-login-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const username = document.getElementById('admin-user-input').value.trim();
             const password = document.getElementById('admin-pass-input').value;
@@ -3582,7 +3634,12 @@
                 renderAdminAllProducts();
                 openModal('admin-dashboard-modal');
                 renderBids();
-                initializeSupabaseData();
+                await initializeSupabaseData();
+                populateAdminSelectors();
+                renderAdminProductManagement();
+                renderAdminBidManagement();
+                renderAdminAllProducts();
+                renderCatalogManagers();
             } else {
                 alert('Incorrect owner username or password.');
             }
@@ -3753,9 +3810,9 @@
 
         document.getElementById('admin-creds-form').addEventListener('submit', (e) => {
             e.preventDefault();
-            adminCreds.username = document.getElementById('new-admin-user').value;
-            adminCreds.password = document.getElementById('new-admin-pass').value;
-            saveData(); alert('Admin Credentials Updated!');
+            adminCreds.username = document.getElementById('new-admin-user').value.trim() || 'admin';
+            adminCreds.password = document.getElementById('new-admin-pass').value || '123';
+            alert('Admin credentials updated for this browser session. Cloud storefront data is unaffected.');
         });
 
         // Modal Controls
@@ -3787,22 +3844,23 @@
         // Owner-login diagnostics: prints the configured UID and current session state to the browser console.
         console.info('[Patch Archive] Configured owner UID:', OWNER_USER_ID);
 
-        // Initialize App
+        // Initialize App -- cloud-only storefront. Never render a browser cache as the public catalog.
         isAdmin = false;
         document.body.classList.remove('admin-mode');
         document.querySelectorAll('.admin-indicator').forEach(el => el.style.display = 'none');
         applyLogoToSite();
         renderAuthHeader();
-        renderProducts();
-        renderGlobalSearchResults();
-        renderBids();
-        renderReceipts();
         renderAdminReceiptManagement();
-        renderAnnouncement();
         toggleBidImgSource();
         toggleEditImgSource();
         renderConnect();
         renderCloudStatus();
+        const initialGrid = document.getElementById('product-grid');
+        if (initialGrid) initialGrid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--text-muted);padding:40px;">Loading store...</div>';
+        const initialBid = document.getElementById('bidding-grid');
+        if (initialBid) initialBid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--text-muted);padding:40px;">Loading auctions...</div>';
+        const initialReceipt = document.getElementById('receipt-grid');
+        if (initialReceipt) initialReceipt.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--text-muted);padding:40px;">Loading receipts...</div>';
         setTimeout(() => initializeSupabaseData(), 0);
     </script>
 </body>
