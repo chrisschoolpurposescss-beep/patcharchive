@@ -3861,7 +3861,17 @@
 
 
         // Owner-login diagnostics: prints the configured UID and current session state to the browser console.
-        console.info('[Patch Archive] Configured owner UID:', OWNER_USER_ID);
+        console.info('[Patch Archive] Owner gate: local admin credentials; storefront data source: Supabase.');
+
+        // Production safety: surface uncaught runtime errors instead of silently breaking the storefront.
+        window.addEventListener('error', (event) => {
+            console.error('[Patch Archive] Runtime error:', event.error || event.message);
+            const el = document.getElementById('cloud-sync-status');
+            if (el && !cloudInitialLoadDone) { el.textContent = 'APP ERROR'; el.className = 'status-pill cloud-off'; }
+        });
+        window.addEventListener('unhandledrejection', (event) => {
+            console.error('[Patch Archive] Unhandled promise rejection:', event.reason);
+        });
 
         // Initialize App -- cloud-only storefront. Never render a browser cache as the public catalog.
         isAdmin = false;
@@ -3880,7 +3890,7 @@
         if (initialBid) initialBid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--text-muted);padding:40px;">Loading auctions...</div>';
         const initialReceipt = document.getElementById('receipt-grid');
         if (initialReceipt) initialReceipt.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--text-muted);padding:40px;">Loading receipts...</div>';
-        setTimeout(() => initializeSupabaseData(), 0);
+        setTimeout(() => initializeSupabaseData().catch(err => { console.error('[Patch Archive] Boot failed:', err); const grid=document.getElementById('product-grid'); if(grid){ grid.innerHTML='<div style="grid-column:1/-1;text-align:center;color:var(--danger,#ff5a5a);padding:40px;">Live store failed to start. Please refresh.</div>'; } }), 0);
     </script>
 </body>
 </html>
