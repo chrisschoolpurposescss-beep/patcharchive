@@ -2170,6 +2170,49 @@
             return sbClient.from(table);
         }
 
+        // Shared public storefront state. Admin login remains local; Supabase stores only public shop data.
+        function getPublicStoreState() {
+            return {
+                version: 1,
+                products: products,
+                bids: bids,
+                receipts: receipts,
+                categories: siteCategories,
+                brands: siteBrands,
+                announcement: announcement,
+                connectLinks: connectLinks,
+                siteLogo: siteLogo
+            };
+        }
+
+        async function loadPublicStoreState() {
+            if (!sbClient) return false;
+            const { data, error } = await cloudTable('site_settings')
+                .select('setting_value')
+                .eq('setting_key', 'store_state')
+                .maybeSingle();
+            if (error) throw error;
+            const state = data?.setting_value;
+            if (!state || typeof state !== 'object') return false;
+            products = Array.isArray(state.products) ? state.products : products;
+            bids = Array.isArray(state.bids) ? state.bids : bids;
+            receipts = Array.isArray(state.receipts) ? state.receipts : receipts;
+            siteCategories = Array.isArray(state.categories) ? state.categories : siteCategories;
+            siteBrands = Array.isArray(state.brands) ? state.brands : siteBrands;
+            announcement = state.announcement || announcement;
+            connectLinks = state.connectLinks || connectLinks;
+            siteLogo = state.siteLogo || siteLogo;
+            normalizeCatalogData();
+            return true;
+        }
+
+        async function savePublicStoreState() {
+            if (!sbClient || !isAdmin) return;
+            const payload = { setting_key: 'store_state', setting_value: getPublicStoreState(), updated_at: new Date().toISOString() };
+            const { error } = await cloudTable('site_settings').upsert(payload, { onConflict: 'setting_key' });
+            if (error) throw error;
+        }
+
         // Single owner account for this Patch Archive installation.
         // This removes the fragile dependency on the profiles table for determining owner UI access.
         const OWNER_USER_ID = '7f5a7303-f0e6-4545-99ef-6372eb8e447a';
@@ -2339,16 +2382,17 @@
             cloudSyncTimer=setTimeout(async()=>{
                 if(cloudSyncBusy) return;
                 cloudSyncBusy=true;
-                try { await syncAllStoreDataToCloud(); window.__patchCloudSyncErrorShown=false; }
-                catch(err){ console.error('Patch Archive Supabase sync failed:',err); if(!window.__patchCloudSyncErrorShown){window.__patchCloudSyncErrorShown=true; alert('Cloud sync failed: '+(err?.message||err)+'. Your local changes are still kept in this browser.');} }
+                try { await savePublicStoreState(); window.__patchCloudSyncErrorShown=false; renderCloudStatus(); }
+                catch(err){ console.error('Patch Archive Supabase sync failed:',err); if(!window.__patchCloudSyncErrorShown){window.__patchCloudSyncErrorShown=true; alert('Cloud sync failed: '+(err?.message||err));} }
                 finally { cloudSyncBusy=false; }
-            },250);
+            },150);
         }
+
 
         function renderCloudStatus() {
             const el=document.getElementById('cloud-sync-status'); if(!el) return;
             el.style.display='inline-flex';
-            if (cloudReady) { el.className='status-pill cloud-ok'; el.textContent=isAdmin?'CLOUD ADMIN':'CLOUD'; }
+            if (cloudReady) { el.className='status-pill cloud-ok'; el.textContent=isAdmin?'SYNC ON':'SHARED'; }
             else { el.className='status-pill cloud-off'; el.textContent='LOCAL ONLY'; }
         }
 
@@ -2356,29 +2400,22 @@
             if (!sbClient) { cloudReady = false; renderCloudStatus(); return; }
             try {
                 cloudReady = true;
-                const cloud = await fetchCloudCollections();
-                const hasCloud = cloudHasStoreData(cloud);
-                if (hasCloud) {
-                    applyCloudCollections(cloud);
-                    normalizeCatalogData();
-                    // Keep a local cache too, but cloud is the source of truth.
-                    try {
-                        const payloads={patch_users:users,patch_products:products,patch_bids:bids,patch_receipts:receipts,patch_announcement:announcement,patch_connect_links:connectLinks,patch_site_logo:siteLogo,patch_site_categories:siteCategories,patch_site_brands:siteBrands};
-                        for (const [key,value] of Object.entries(payloads)) writeLocalStorage(key,value);
-                    } catch (_) {}
-                } else if (isAdmin && (products.length || bids.length || receipts.length)) {
-                    await syncAllStoreDataToCloud();
-                }
+                await loadPublicStoreState();
                 cloudInitialLoadDone = true;
+                try {
+                    const cache={patch_products:products,patch_bids:bids,patch_receipts:receipts,patch_announcement:announcement,patch_connect_links:connectLinks,patch_site_logo:siteLogo,patch_site_categories:siteCategories,patch_site_brands:siteBrands};
+                    for (const [key,value] of Object.entries(cache)) writeLocalStorage(key,value);
+                } catch (_) {}
                 renderCloudStatus();
                 renderProducts(); renderGlobalSearchResults(); renderBids(); renderReceipts(); renderAnnouncement(); renderConnect(); applyLogoToSite();
-                if (isAdmin) { renderAdminProductManagement(); renderAdminBidManagement(); renderAdminAllProducts(); renderCatalogManagers(); }
+                if (isAdmin) { renderAdminProductManagement(); renderAdminBidManagement(); renderAdminAllProducts(); renderCatalogManagers(); populateAnnouncementForm(); populateConnectForm(); populateLogoForm(); }
             } catch (err) {
                 console.error('Supabase shared-store load failed:', err);
                 cloudReady = false;
                 renderCloudStatus();
             }
         }
+
 
 
         function saveData() {
