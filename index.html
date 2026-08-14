@@ -1110,6 +1110,35 @@
         @media (max-width:600px){ .logo-shape-options{grid-template-columns:1fr;} }
 
         /* Shop search / filters */
+        .search-results-wrap {
+            margin: 0 0 2.2rem;
+            padding: 18px;
+            background: linear-gradient(180deg,#151515 0%,#101010 100%);
+            border: 1px solid #2a2a2a;
+            border-radius: 14px;
+        }
+        .search-result-card {
+            cursor:pointer;
+            position:relative;
+        }
+        .search-result-type {
+            position:absolute;
+            top:10px;
+            right:10px;
+            z-index:5;
+            padding:5px 9px;
+            border-radius:999px;
+            background:rgba(0,0,0,.72);
+            border:1px solid #444;
+            color:#fff;
+            font-size:.68rem;
+            font-weight:800;
+            text-transform:uppercase;
+            letter-spacing:.7px;
+        }
+        .search-result-type.auction { color:var(--gold); border-color:rgba(255,215,0,.35); }
+        .search-result-type.shop { color:#fff; border-color:rgba(230,57,70,.35); }
+
         .shop-tools { display:grid; grid-template-columns:minmax(220px,1.6fr) minmax(170px,1fr) minmax(170px,1fr) auto; gap:10px; margin:0 auto 18px; align-items:center; }
         .shop-tools input, .shop-tools select { width:100%; padding:11px 13px; border-radius:8px; border:1px solid var(--card-border); background:#151515; color:var(--white); font-family:inherit; outline:none; }
         .shop-tools input:focus, .shop-tools select:focus { border-color:var(--primary-red); }
@@ -1187,6 +1216,14 @@
         </div>
         <div id="shop-filter-summary" class="filter-summary"></div>
         <div class="category-bar" id="category-bar"></div>
+
+        <div id="global-search-results" class="search-results-wrap" style="display:none;">
+            <div class="section-header" style="margin-bottom:1.2rem;">
+                <h2 style="font-size:1.65rem;">Search Results</h2>
+                <p id="global-search-summary">Related products from the shop and auctions.</p>
+            </div>
+            <div class="grid" id="global-search-grid"></div>
+        </div>
 
         <div class="grid" id="product-grid"></div>
     </section>
@@ -2357,7 +2394,7 @@
             if(catSelect){ catSelect.innerHTML=`<option value="all">All Categories</option>`+siteCategories.map(c=>`<option value="${safeText(c.id)}">${safeText(c.name)}</option>`).join(''); catSelect.value=currentFilter; }
             if(brandSelect){ brandSelect.innerHTML=`<option value="all">All Brands</option>`+siteBrands.map(b=>`<option value="${safeText(b)}">${safeText(b)}</option>`).join(''); brandSelect.value=currentBrandFilter; }
         }
-        function clearShopFilters(){ currentFilter='all'; currentBrandFilter='all'; currentSearch=''; const s=document.getElementById('shop-search'); if(s)s.value=''; populateShopFilters(); renderProducts(); }
+        function clearShopFilters(){ currentFilter='all'; currentBrandFilter='all'; currentSearch=''; const s=document.getElementById('shop-search'); if(s)s.value=''; populateShopFilters(); renderProducts(); renderGlobalSearchResults(); }
         function productMatchesFilters(p){
             const hay=[p.title,p.description,p.brand,getCategoryName(p.category)].join(' ').toLowerCase();
             const searchOK=!currentSearch || hay.includes(currentSearch.toLowerCase());
@@ -2442,6 +2479,50 @@
                 },15000);
                 productMediaTimers.set(id,timer);
             });
+        }
+
+        function globalSearchMatches(item){
+            const q = currentSearch.trim().toLowerCase();
+            if(!q) return false;
+            const hay = [
+                item.title, item.description, item.brand, getCategoryName(item.category),
+                item.size, item.condition, item.highestBidderTag, item.isSoldOut ? 'sold sold out closed' : 'live available'
+            ].filter(Boolean).join(' ').toLowerCase();
+            return hay.includes(q);
+        }
+
+        function renderGlobalSearchResults(){
+            const wrap=document.getElementById('global-search-results');
+            const grid=document.getElementById('global-search-grid');
+            const summary=document.getElementById('global-search-summary');
+            if(!wrap || !grid) return;
+            if(!currentSearch.trim()){ wrap.style.display='none'; grid.innerHTML=''; return; }
+
+            const results=[
+                ...products.filter(globalSearchMatches).map(item=>({item,type:'shop'})),
+                ...bids.filter(globalSearchMatches).map(item=>({item,type:'auction'}))
+            ];
+            wrap.style.display='block';
+            if(summary) summary.textContent=`Found ${results.length} related product${results.length===1?'':'s'} across the shop and bidding.`;
+            if(!results.length){
+                grid.innerHTML='<div style="grid-column:1/-1;text-align:center;color:var(--text-muted);padding:28px;">No related product found anywhere in the site.</div>';
+                return;
+            }
+
+            grid.innerHTML=results.map(({item,type})=>{
+                const media=type==='auction' ? getBidMediaEntries(item) : getProductMedia(item).map(src=>({type:'image',src}));
+                const first=media[0] || {type:'image',src:item.img};
+                const sold= item.isSoldOut ? '<div class="sold-out-overlay"><span class="sold-out-badge">SOLD OUT</span></div>' : '';
+                return `<div class="product-card search-result-card" onclick="${type==='auction'?'openBidDetail':'openProductDetail'}(${Number(item.id)})">
+                    <span class="search-result-type ${type}">${type==='auction'?'Auction':'Shop'}</span>
+                    <div class="product-img-wrapper">${sold}<div class="product-media-frame">${createMediaElement(first)}</div></div>
+                    <div class="product-info">
+                        <span class="product-category-tag">${safeText(getCategoryName(item.category))}${item.brand?` · <span class="tag-brand">${safeText(item.brand)}</span>`:''}</span>
+                        <h3 class="product-title">${safeText(item.title)}</h3>
+                        <div class="product-price">${type==='auction' ? `Highest ₱${Number(item.highestBid||item.startPrice||0).toLocaleString()}` : `₱${Number(item.price||0).toLocaleString()}`}</div>
+                    </div>
+                </div>`;
+            }).join('');
         }
 
         function renderProducts() {
@@ -2542,6 +2623,15 @@
             });
         }
 
+        function handleBidAdminAction(event, action, id){
+            if(event){ event.preventDefault(); event.stopPropagation(); }
+            if(!isAdmin){ alert('Please log in to Owner Mode first.'); return false; }
+            if(action==='sold') toggleBidSoldStatus(id);
+            else if(action==='edit') openAdminEditItem('bid', id);
+            else if(action==='delete') deleteBid(id);
+            return false;
+        }
+
         function renderBids() {
             const grid = document.getElementById('bidding-grid');
             clearBidMediaTimers();
@@ -2556,9 +2646,9 @@
                 const soldOutOverlay = item.isSoldOut ? `<div class="sold-out-overlay"><span class="sold-out-badge">SOLD OUT</span></div>` : '';
                 const adminActions = isAdmin ? `
                     <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;">
-                        <button class="btn btn-sm ${item.isSoldOut ? 'btn-gold' : 'btn-dark'}" onclick="event.stopPropagation(); toggleBidSoldStatus(${Number(item.id)})">${item.isSoldOut ? 'Mark Available' : 'Mark Sold'}</button>
-                        <button class="btn btn-sm btn-dark" onclick="event.stopPropagation(); openAdminEditItem('bid', ${Number(item.id)})"><i class="fas fa-edit"></i> Edit</button>
-                        <button class="btn btn-sm btn-danger" onclick="event.stopPropagation(); deleteBid(${Number(item.id)})"><i class="fas fa-trash"></i></button>
+                        <button class="btn btn-sm ${item.isSoldOut ? 'btn-gold' : 'btn-dark'}" onclick="handleBidAdminAction(event, 'sold', ${Number(item.id)})">${item.isSoldOut ? 'Mark Available' : 'Mark Sold'}</button>
+                        <button class="btn btn-sm btn-dark" onclick="handleBidAdminAction(event, 'edit', ${Number(item.id)})"><i class="fas fa-edit"></i> Edit</button>
+                        <button class="btn btn-sm btn-danger" onclick="handleBidAdminAction(event, 'delete', ${Number(item.id)})"><i class="fas fa-trash"></i></button>
                     </div>` : '';
                 const mediaCount=media.length>1 ? `<span class="mini-badge">${media.length} media</span>` : '';
                 grid.innerHTML += `
@@ -2733,6 +2823,10 @@
         }
 
         function openAdminEditItem(type, id) {
+            if (!isAdmin) {
+                alert('Please log in to Owner Mode first.');
+                return;
+            }
             const item=type==='product' ? products.find(p=>Number(p.id)===Number(id)) : bids.find(b=>Number(b.id)===Number(id));
             if(!item) return;
             document.getElementById('edit-prod-type').value=type;
@@ -2757,6 +2851,7 @@
             document.getElementById('edit-video-files').value='';
             renderEditMediaList();
             document.getElementById('atab-edit').style.display='block';
+            openModal('admin-dashboard-modal');
             switchAdminSubtab('edit');
         }
 
@@ -3326,7 +3421,11 @@
         }
 
         // Shop search / filter events
-        document.getElementById('shop-search')?.addEventListener('input', e => { currentSearch = e.target.value.trim(); renderProducts(); });
+        document.getElementById('shop-search')?.addEventListener('input', e => {
+            currentSearch = e.target.value.trim();
+            renderProducts();
+            renderGlobalSearchResults();
+        });
         document.getElementById('shop-category-filter')?.addEventListener('change', e => { currentFilter = e.target.value || 'all'; renderProducts(); });
         document.getElementById('shop-brand-filter')?.addEventListener('change', e => { currentBrandFilter = e.target.value || 'all'; renderProducts(); });
         document.getElementById('admin-all-products-search')?.addEventListener('input', renderAdminAllProducts);
@@ -3344,6 +3443,7 @@
         applyLogoToSite();
         renderAuthHeader();
         renderProducts();
+        renderGlobalSearchResults();
         renderBids();
         renderReceipts();
         renderAdminReceiptManagement();
