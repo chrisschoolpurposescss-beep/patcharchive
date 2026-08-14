@@ -1431,6 +1431,7 @@
                     <input type="password" id="admin-pass-input" required>
                 </div>
                 <button type="submit" class="btn btn-gold" style="width: 100%; margin-top: 1rem;">Unlock Owner Panel</button>
+                <button type="button" class="btn btn-dark" style="width:100%;margin-top:10px;" onclick="sendOwnerPasswordReset()">Forgot / Reset Password</button>
             </form>
         </div>
     </div>
@@ -2157,9 +2158,17 @@
         // ============================================================
         const SUPABASE_URL = 'https://efjgiiiavspvymwxutjj.supabase.co';
         const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_qmit_A7cfBeXCpueM09hcQ_k2IINZ9d';
+        // Ignore stale/expired email-auth callback parameters so they cannot block normal owner login.
+        try {
+            if (/[#?](?:error|error_code|error_description|code|access_token|refresh_token)=/i.test(window.location.href)) {
+                const cleanUrl = window.location.origin + window.location.pathname;
+                window.history.replaceState({}, document.title, cleanUrl);
+            }
+        } catch (e) { console.warn('Could not clean auth callback URL:', e); }
+
         const sbClient = (window.supabase && typeof window.supabase.createClient === 'function')
             ? window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-                auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+                auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false }
             })
             : null;
         let cloudReady = !!sbClient;
@@ -3505,6 +3514,21 @@
             } else openModal('admin-login-modal');
         }
 
+
+        async function sendOwnerPasswordReset() {
+            if (!sbClient) return alert('Supabase could not be loaded.');
+            const email = document.getElementById('admin-user-input').value.trim().toLowerCase();
+            if (!email) return alert('Enter the owner email first.');
+            try {
+                const redirectTo = window.location.origin + window.location.pathname;
+                const { error } = await sbClient.auth.resetPasswordForEmail(email, { redirectTo });
+                if (error) throw error;
+                alert('Password reset email sent. Use the newest email only.');
+            } catch (err) {
+                alert('Could not send password reset: ' + (err?.message || err));
+            }
+        }
+
         document.getElementById('admin-login-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const email = document.getElementById('admin-user-input').value.trim().toLowerCase();
@@ -3515,7 +3539,14 @@
             try {
                 if (submitBtn) { submitBtn.disabled = true; submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Signing In...'; }
                 const { data, error } = await sbClient.auth.signInWithPassword({ email, password });
-                if (error) throw new Error(error.message);
+                if (error) {
+                    const msg = String(error.message || 'Unknown authentication error');
+                    if (/email not confirmed/i.test(msg)) {
+                        throw new Error('Supabase says this owner email is not confirmed yet. In Supabase Dashboard → Authentication → Users, open the owner user and confirm the email, then try again.');
+                    }
+                    throw new Error(msg);
+                }
+                if (!data?.user) throw new Error('Supabase did not return a user session.');
                 const profile = await getCloudAdminProfile(data?.user || null);
                 if (!profile) {
                     await sbClient.auth.signOut();
