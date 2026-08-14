@@ -5,8 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Patch Archive | Vintage & Thrift Store</title>
     
-    <!-- Google Fonts & FontAwesome Icons -->
+    <!-- Google Fonts, EmailJS & FontAwesome Icons -->
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800;900&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
@@ -162,6 +163,7 @@
             display: flex;
             gap: 1.5rem;
             align-items: center;
+            flex-wrap: wrap;
         }
 
         .nav-links a {
@@ -526,6 +528,91 @@
             text-shadow: 0 0 10px rgba(255, 215, 0, 0.6);
         }
 
+        /* Announcement */
+        .announcement-wrap {
+            margin: 0 auto 2rem;
+            max-width: 900px;
+        }
+
+        .announcement-card {
+            display: grid;
+            grid-template-columns: 1fr;
+            background: linear-gradient(135deg, #171717 0%, #0f0f0f 100%);
+            border: 1px solid var(--primary-red);
+            border-radius: 14px;
+            overflow: hidden;
+            box-shadow: 0 10px 35px rgba(230,57,70,0.14);
+        }
+
+        .announcement-card.has-image {
+            grid-template-columns: 170px 1fr;
+        }
+
+        .announcement-image {
+            width: 100%;
+            min-height: 170px;
+            object-fit: cover;
+            background: #000;
+        }
+
+        .announcement-content {
+            padding: 1.2rem 1.35rem;
+        }
+
+        .announcement-kicker {
+            display: inline-block;
+            color: var(--gold);
+            font-size: 0.7rem;
+            font-weight: 900;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin-bottom: 0.35rem;
+        }
+
+        .announcement-title {
+            color: var(--white);
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.45rem;
+            line-height: 1.15;
+            margin-bottom: 0.4rem;
+        }
+
+        .announcement-message {
+            color: #c7c7c7;
+            font-size: 0.92rem;
+            white-space: pre-line;
+        }
+
+        .announcement-link {
+            margin-top: 0.85rem;
+        }
+
+        @media (max-width: 600px) {
+            .announcement-card.has-image {
+                grid-template-columns: 1fr;
+            }
+            .announcement-image {
+                max-height: 220px;
+            }
+        }
+
+        /* Account Details */
+        .account-detail-note {
+            background: #181818;
+            border: 1px solid var(--card-border);
+            color: var(--text-muted);
+            padding: 10px 12px;
+            border-radius: 7px;
+            font-size: 0.82rem;
+            margin-bottom: 1rem;
+        }
+
+        .email-status {
+            margin-top: 10px;
+            font-size: 0.82rem;
+            color: var(--text-muted);
+        }
+
         /* Modals */
         .modal-overlay {
             position: fixed;
@@ -668,6 +755,7 @@
                 <a href="#connect">Connect</a>
                 
                 <div id="auth-nav-container"></div>
+                <div id="account-nav-container"></div>
             </nav>
         </div>
     </header>
@@ -676,6 +764,7 @@
     <section class="hero container">
         <h1>PATCH <span>ARCHIVE</span></h1>
         <p>Curated archive fashion, rare street vintage, and high-grade thrift drops.</p>
+        <div id="announcement-wrap" class="announcement-wrap"></div>
     </section>
 
     <!-- Shop Categories Section -->
@@ -834,6 +923,30 @@
         </div>
     </div>
 
+    <!-- CUSTOMER SHIPPING / FACEBOOK DETAILS MODAL -->
+    <div class="modal-overlay" id="shipping-modal">
+        <div class="modal-box">
+            <span class="close-modal" onclick="closeModal('shipping-modal')">&times;</span>
+            <h3>Delivery & Contact Details</h3>
+            <div class="account-detail-note">
+                Save your shipping address and Facebook name so the owner can contact you about your order.
+                Your details will be emailed to the store owner when you save them.
+            </div>
+            <form id="shipping-form">
+                <div class="form-group">
+                    <label>Facebook Name</label>
+                    <input type="text" id="shipping-facebook-name" placeholder="Your exact Facebook name" required>
+                </div>
+                <div class="form-group">
+                    <label>Shipping Address</label>
+                    <textarea id="shipping-address" rows="4" placeholder="House/Street, Barangay, Municipality/City, Province, ZIP Code" required></textarea>
+                </div>
+                <button type="submit" class="btn" style="width:100%;">Save Details</button>
+                <div id="shipping-email-status" class="email-status"></div>
+            </form>
+        </div>
+    </div>
+
     <!-- BID CONTACT POPUP MODAL -->
     <div class="modal-overlay" id="bid-popup-modal">
         <div class="modal-box" style="text-align: center;">
@@ -883,6 +996,7 @@
                 <button class="admin-subtab" id="atab-edit" onclick="switchAdminSubtab('edit')" style="display:none;"><i class="fas fa-edit"></i> Edit Item</button>
                 <button class="admin-subtab" id="atab-bid" onclick="switchAdminSubtab('bid')"><i class="fas fa-gavel"></i> Bids</button>
                 <button class="admin-subtab" id="atab-rec" onclick="switchAdminSubtab('rec')"><i class="fas fa-receipt"></i> Receipts</button>
+                <button class="admin-subtab" id="atab-ann" onclick="switchAdminSubtab('ann')"><i class="fas fa-bullhorn"></i> Announcement</button>
                 <button class="admin-subtab" id="atab-sec" onclick="switchAdminSubtab('sec')"><i class="fas fa-lock"></i> Security</button>
             </div>
 
@@ -1034,7 +1148,42 @@
                 <button type="submit" class="btn" style="width: 100%;">Publish Receipt Proof</button>
             </form>
 
-            <!-- Tab 6: Security -->
+            <!-- Tab 6: Announcement -->
+            <form id="admin-announcement-form" class="admin-tab-content" style="display:none;">
+                <div class="form-group">
+                    <label>Announcement Title</label>
+                    <input type="text" id="ann-title" placeholder="e.g. NEW DROP: Vintage Harley Tee" required>
+                </div>
+                <div class="form-group">
+                    <label>Announcement Message</label>
+                    <textarea id="ann-message" rows="4" placeholder="Write a short announcement, new-arrival note, promo, or update." required></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Announcement Image</label>
+                    <select id="ann-img-source" onchange="toggleAnnouncementImgSource()">
+                        <option value="url">Paste Image URL</option>
+                        <option value="file">Upload Local Image File</option>
+                        <option value="none">No Image</option>
+                    </select>
+                </div>
+                <div class="form-group" id="group-ann-img-url">
+                    <label>Image URL</label>
+                    <input type="text" id="ann-img-url" placeholder="https://...">
+                </div>
+                <div class="form-group" id="group-ann-img-file" style="display:none;">
+                    <label>Upload File</label>
+                    <input type="file" id="ann-img-file" accept="image/*">
+                </div>
+                <label style="display:flex;align-items:center;gap:8px;color:var(--white);font-size:0.85rem;margin-bottom:1rem;">
+                    <input type="checkbox" id="ann-active" checked> Show this announcement on the homepage
+                </label>
+                <div style="display:flex;gap:10px;">
+                    <button type="submit" class="btn" style="width:50%;">Publish Announcement</button>
+                    <button type="button" class="btn btn-danger" style="width:50%;" onclick="clearAnnouncement()">Remove Announcement</button>
+                </div>
+            </form>
+
+            <!-- Tab 7: Security -->
             <form id="admin-creds-form" class="admin-tab-content" style="display:none;">
                 <div class="form-group">
                     <label>New Admin Username</label>
@@ -1072,10 +1221,26 @@
             { id: 201, buyer: "Marco P.", item: "Vintage Harley Tee", date: "August 2026", img: "https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?auto=format&fit=crop&q=80&w=600" }
         ];
 
+        const defaultAnnouncement = {
+            active: true,
+            title: "NEW ARRIVAL",
+            message: "Fresh archive pieces just landed. Check the shop for the latest drop.",
+            image: "",
+            link: "#shop"
+        };
+
+        // EmailJS configuration - replace these three placeholders with your EmailJS values.
+        const EMAILJS_CONFIG = {
+            publicKey: "YOUR_EMAILJS_PUBLIC_KEY",
+            serviceId: "YOUR_EMAILJS_SERVICE_ID",
+            templateId: "YOUR_EMAILJS_TEMPLATE_ID"
+        };
+
         let users = JSON.parse(localStorage.getItem('patch_users')) || defaultUsers;
         let products = JSON.parse(localStorage.getItem('patch_products')) || defaultProducts;
         let bids = JSON.parse(localStorage.getItem('patch_bids')) || defaultBids;
         let receipts = JSON.parse(localStorage.getItem('patch_receipts')) || defaultReceipts;
+        let announcement = JSON.parse(localStorage.getItem('patch_announcement')) || defaultAnnouncement;
         let adminCreds = JSON.parse(localStorage.getItem('patch_admin_creds')) || { username: "admin", password: "123" };
         let currentUser = JSON.parse(localStorage.getItem('patch_current_user')) || null;
         let isAdmin = false;
@@ -1086,6 +1251,7 @@
             localStorage.setItem('patch_products', JSON.stringify(products));
             localStorage.setItem('patch_bids', JSON.stringify(bids));
             localStorage.setItem('patch_receipts', JSON.stringify(receipts));
+            localStorage.setItem('patch_announcement', JSON.stringify(announcement));
             localStorage.setItem('patch_admin_creds', JSON.stringify(adminCreds));
             localStorage.setItem('patch_current_user', JSON.stringify(currentUser));
         }
@@ -1098,6 +1264,7 @@
                     <div class="user-profile-badge">
                         <i class="fas fa-user-circle" style="color:var(--primary-red)"></i>
                         <span>${currentUser.displayName} <span class="tag-mention">@${currentUser.id}</span></span>
+                        <button onclick="openShippingModal()" style="color:var(--gold); margin-left:8px;" title="Shipping Details"><i class="fas fa-location-dot"></i></button>
                         <button onclick="logoutUser()" style="color:var(--text-muted); margin-left:8px;" title="Logout"><i class="fas fa-sign-out-alt"></i></button>
                     </div>
                 `;
@@ -1106,6 +1273,40 @@
                     <button class="btn" onclick="openModal('auth-modal')">Log In / Sign Up</button>
                 `;
             }
+            renderAccountNav();
+        }
+
+        function renderAccountNav() {
+            const container = document.getElementById('account-nav-container');
+            if (!container) return;
+            if (currentUser) {
+                container.innerHTML = `<button class="btn btn-dark btn-sm" onclick="openShippingModal()"><i class="fas fa-truck"></i> My Details</button>`;
+            } else {
+                container.innerHTML = '';
+            }
+        }
+
+        // Homepage Announcement
+        function renderAnnouncement() {
+            const wrap = document.getElementById('announcement-wrap');
+            if (!wrap) return;
+            if (!announcement || !announcement.active) {
+                wrap.innerHTML = '';
+                return;
+            }
+
+            const hasImage = Boolean(announcement.image);
+            wrap.innerHTML = `
+                <div class="announcement-card ${hasImage ? 'has-image' : ''}">
+                    ${hasImage ? `<img class="announcement-image" src="${announcement.image}" alt="Announcement">` : ''}
+                    <div class="announcement-content">
+                        <span class="announcement-kicker"><i class="fas fa-bullhorn"></i> Store Announcement</span>
+                        <h2 class="announcement-title">${announcement.title || 'Announcement'}</h2>
+                        <p class="announcement-message">${announcement.message || ''}</p>
+                        <div class="announcement-link"><a class="btn btn-sm" href="${announcement.link || '#shop'}">View Shop</a></div>
+                    </div>
+                </div>
+            `;
         }
 
         // Category Filtering
@@ -1402,6 +1603,10 @@
             if (tab === 'edit') document.getElementById('admin-edit-product-form').style.display = 'block';
             if (tab === 'bid') document.getElementById('admin-bid-form').style.display = 'block';
             if (tab === 'rec') document.getElementById('admin-receipt-form').style.display = 'block';
+            if (tab === 'ann') {
+                loadAnnouncementForm();
+                document.getElementById('admin-announcement-form').style.display = 'block';
+            }
             if (tab === 'sec') document.getElementById('admin-creds-form').style.display = 'block';
         }
 
@@ -1449,6 +1654,72 @@
                 }
                 saveProductObj(url);
             }
+        });
+
+        // Announcement Image Source
+        function toggleAnnouncementImgSource() {
+            const mode = document.getElementById('ann-img-source').value;
+            document.getElementById('group-ann-img-url').style.display = mode === 'url' ? 'block' : 'none';
+            document.getElementById('group-ann-img-file').style.display = mode === 'file' ? 'block' : 'none';
+        }
+
+        function loadAnnouncementForm() {
+            document.getElementById('ann-title').value = announcement.title || '';
+            document.getElementById('ann-message').value = announcement.message || '';
+            document.getElementById('ann-active').checked = announcement.active !== false;
+            document.getElementById('ann-img-source').value = announcement.image ? 'url' : 'none';
+            document.getElementById('ann-img-url').value = announcement.image || '';
+            toggleAnnouncementImgSource();
+        }
+
+        function saveAnnouncement(imageUrl) {
+            announcement = {
+                active: document.getElementById('ann-active').checked,
+                title: document.getElementById('ann-title').value.trim(),
+                message: document.getElementById('ann-message').value.trim(),
+                image: imageUrl || '',
+                link: '#shop'
+            };
+            saveData();
+            renderAnnouncement();
+            alert('Announcement published successfully!');
+        }
+
+        function clearAnnouncement() {
+            announcement = { ...defaultAnnouncement, active: false };
+            saveData();
+            renderAnnouncement();
+            loadAnnouncementForm();
+            alert('Announcement removed from the homepage.');
+        }
+
+        document.getElementById('admin-announcement-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const mode = document.getElementById('ann-img-source').value;
+
+            if (mode === 'file') {
+                const fileInput = document.getElementById('ann-img-file');
+                if (fileInput.files && fileInput.files[0]) {
+                    const reader = new FileReader();
+                    reader.onload = function(ev) { saveAnnouncement(ev.target.result); };
+                    reader.readAsDataURL(fileInput.files[0]);
+                } else {
+                    alert('Please select an announcement image, or choose No Image.');
+                }
+                return;
+            }
+
+            if (mode === 'url') {
+                const url = document.getElementById('ann-img-url').value.trim();
+                if (url) {
+                    saveAnnouncement(url);
+                } else {
+                    alert('Please enter an Image URL or choose No Image.');
+                }
+                return;
+            }
+
+            saveAnnouncement('');
         });
 
         // Bidding Process Modal Trigger
@@ -1523,6 +1794,74 @@
             saveData();
             renderAuthHeader();
         }
+
+        // Customer Shipping / Facebook Details
+        function openShippingModal() {
+            if (!currentUser) {
+                openModal('auth-modal');
+                return;
+            }
+            document.getElementById('shipping-facebook-name').value = currentUser.facebookName || '';
+            document.getElementById('shipping-address').value = currentUser.shippingAddress || '';
+            document.getElementById('shipping-email-status').textContent = '';
+            openModal('shipping-modal');
+        }
+
+        function emailShippingDetails() {
+            if (!window.emailjs) {
+                throw new Error('EmailJS did not load. Please refresh the page and try again.');
+            }
+
+            const { publicKey, serviceId, templateId } = EMAILJS_CONFIG;
+            if ([publicKey, serviceId, templateId].some(v => !v || v.startsWith('YOUR_'))) {
+                throw new Error('EmailJS is not configured yet. Add your Public Key, Service ID, and Template ID in the script.');
+            }
+
+            return emailjs.send(serviceId, templateId, {
+                customer_name: currentUser.displayName,
+                username: currentUser.username,
+                user_tag: '@' + currentUser.id,
+                facebook_name: currentUser.facebookName,
+                shipping_address: currentUser.shippingAddress,
+                submitted_at: new Date().toLocaleString()
+            }, { publicKey });
+        }
+
+        document.getElementById('shipping-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!currentUser) return;
+
+            const facebookName = document.getElementById('shipping-facebook-name').value.trim();
+            const shippingAddress = document.getElementById('shipping-address').value.trim();
+            const status = document.getElementById('shipping-email-status');
+
+            if (!facebookName || !shippingAddress) {
+                alert('Please complete both your Facebook name and shipping address.');
+                return;
+            }
+
+            currentUser.facebookName = facebookName;
+            currentUser.shippingAddress = shippingAddress;
+
+            const userIndex = users.findIndex(u => u.id === currentUser.id);
+            if (userIndex !== -1) {
+                users[userIndex].facebookName = facebookName;
+                users[userIndex].shippingAddress = shippingAddress;
+            }
+
+            saveData();
+            status.textContent = 'Sending your details to the store owner...';
+
+            try {
+                await emailShippingDetails();
+                status.textContent = 'Saved and emailed to the store owner successfully.';
+                status.style.color = 'var(--gold)';
+            } catch (error) {
+                console.error(error);
+                status.textContent = 'Your details were saved on this device, but the email could not be sent. Check the EmailJS setup.';
+                status.style.color = 'var(--danger)';
+            }
+        });
 
         // Crown Admin
         function triggerAdminModal() {
@@ -1617,8 +1956,14 @@
             document.getElementById(id).classList.remove('active');
         }
 
+        // Initialize EmailJS (public key only; do not put a private key in this file)
+        if (window.emailjs && EMAILJS_CONFIG.publicKey && !EMAILJS_CONFIG.publicKey.startsWith('YOUR_')) {
+            emailjs.init({ publicKey: EMAILJS_CONFIG.publicKey });
+        }
+
         // Initialize App
         renderAuthHeader();
+        renderAnnouncement();
         renderProducts();
         renderBids();
         renderReceipts();
