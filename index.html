@@ -642,7 +642,7 @@
         }
 
         .admin-indicator {
-            display: none;
+            display: none !important;
             background: var(--gold);
             color: #000;
             font-size: 0.7rem;
@@ -1036,20 +1036,7 @@
                 <h2>Connect & Order</h2>
                 <p>DM the owner directly on social media to claim pieces or submit bids.</p>
             </div>
-            <div class="socials-grid">
-                <a href="https://facebook.com" target="_blank" class="social-card">
-                    <i class="fab fa-facebook-f" style="color: #1877F2;"></i>
-                    <span>Facebook DM</span>
-                </a>
-                <a href="https://instagram.com" target="_blank" class="social-card">
-                    <i class="fab fa-instagram" style="color: #E4405F;"></i>
-                    <span>Instagram</span>
-                </a>
-                <a href="mailto:patcharchive@gmail.com" class="social-card">
-                    <i class="fas fa-envelope" style="color: var(--primary-red);"></i>
-                    <span>Gmail Contact</span>
-                </a>
-            </div>
+            <div class="socials-grid" id="socials-grid"></div>
         </div>
     </section>
 
@@ -1240,6 +1227,7 @@
                 <button class="admin-subtab" id="atab-rec" onclick="switchAdminSubtab('rec')"><i class="fas fa-receipt"></i> Receipts</button>
                 <button class="admin-subtab" id="atab-sec" onclick="switchAdminSubtab('sec')"><i class="fas fa-lock"></i> Security</button>
                 <button class="admin-subtab" id="atab-users" onclick="switchAdminSubtab('users')"><i class="fas fa-users"></i> User Logs</button>
+                <button class="admin-subtab" id="atab-connect" onclick="switchAdminSubtab('connect')"><i class="fas fa-share-nodes"></i> Connect</button>
             </div>
 
             <!-- Tab 1: Add New Product -->
@@ -1578,7 +1566,49 @@
                 <button type="submit" class="btn" style="background: var(--danger); border-color: var(--danger); width: 100%;">Update Admin Login Credentials</button>
             </form>
 
-            <!-- Tab 8: User Logs -->
+            <!-- Tab 8: Connect Links -->
+            <form id="admin-connect-form" class="admin-tab-content" style="display:none;">
+                <div class="admin-section-divider"><strong style="color:var(--white);">Connect & Order Links</strong></div>
+                <p style="font-size:.8rem;color:var(--text-muted);margin-bottom:14px;">Edit the button text and destination link shown in the public Connect & Order section.</p>
+
+                <div class="form-grid-2">
+                    <div class="form-group">
+                        <label>Facebook Button Text</label>
+                        <input type="text" id="connect-facebook-label" placeholder="Facebook DM" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Facebook Link</label>
+                        <input type="url" id="connect-facebook-url" placeholder="https://facebook.com/..." required>
+                    </div>
+                </div>
+
+                <div class="form-grid-2">
+                    <div class="form-group">
+                        <label>Instagram Button Text</label>
+                        <input type="text" id="connect-instagram-label" placeholder="Instagram" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Instagram Link</label>
+                        <input type="url" id="connect-instagram-url" placeholder="https://instagram.com/..." required>
+                    </div>
+                </div>
+
+                <div class="form-grid-2">
+                    <div class="form-group">
+                        <label>Gmail Button Text</label>
+                        <input type="text" id="connect-email-label" placeholder="Gmail Contact" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Gmail Address / Link</label>
+                        <input type="text" id="connect-email-url" placeholder="patcharchive@gmail.com" required>
+                    </div>
+                </div>
+
+                <div class="tiny-note">For Gmail, enter an email address or a full <code>mailto:</code> link. The site will automatically convert a plain email address into a Gmail contact button.</div>
+                <button type="submit" class="btn btn-gold" style="width:100%;margin-top:12px;">Save Connect Links</button>
+            </form>
+
+            <!-- Tab 9: User Logs -->
             <div id="admin-user-logs" class="admin-tab-content" style="display:none;">
                 <div class="admin-section-divider"><strong style="color:var(--white);">Users & Saved Customer Details</strong></div>
                 <p style="font-size:.8rem;color:var(--text-muted);margin-bottom:12px;">See every registered user, email verification state, Facebook name, shipping address, and last update.</p>
@@ -1628,6 +1658,11 @@
         let currentUser = JSON.parse(localStorage.getItem('patch_current_user')) || null;
         let pendingVerification = JSON.parse(localStorage.getItem('patch_pending_verification')) || null;
         let activityLogs = JSON.parse(localStorage.getItem('patch_activity_logs')) || [];
+        let connectLinks = JSON.parse(localStorage.getItem('patch_connect_links')) || {
+            facebook: { label: 'Facebook DM', url: 'https://facebook.com' },
+            instagram: { label: 'Instagram', url: 'https://instagram.com' },
+            email: { label: 'Gmail Contact', url: 'mailto:patcharchive@gmail.com' }
+        };
         let isAdmin = false;
         let currentFilter = 'all';
         let editingSubImages = [];
@@ -1653,6 +1688,7 @@
             localStorage.setItem('patch_current_user', JSON.stringify(currentUser));
             localStorage.setItem('patch_pending_verification', JSON.stringify(pendingVerification));
             localStorage.setItem('patch_activity_logs', JSON.stringify(activityLogs));
+            localStorage.setItem('patch_connect_links', JSON.stringify(connectLinks));
         }
 
         function safeText(value) {
@@ -1668,6 +1704,10 @@
         }
 
         function renderAuthHeader() {
+            document.querySelectorAll('.admin-indicator').forEach(el => {
+                el.style.display = isAdmin ? 'inline-block' : 'none';
+            });
+            document.body.classList.toggle('admin-mode', isAdmin);
             const container = document.getElementById('auth-nav-container');
             if (currentUser) {
                 container.innerHTML = `
@@ -1682,6 +1722,51 @@
                 container.innerHTML = `<button class="btn" onclick="openModal('auth-modal')"><i class="fas fa-user"></i> Log In</button>`;
             }
         }
+
+        function normalizeConnectUrl(value) {
+            const raw = String(value || '').trim();
+            if (!raw) return '#';
+            if (/^mailto:/i.test(raw) || /^(https?:|ftp:)/i.test(raw)) return raw;
+            if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(raw)) return `mailto:${raw}`;
+            return `https://${raw}`;
+        }
+
+        function renderConnect() {
+            const grid = document.getElementById('socials-grid');
+            if (!grid) return;
+            const items = [
+                { key:'facebook', icon:'fab fa-facebook-f', color:'#1877F2' },
+                { key:'instagram', icon:'fab fa-instagram', color:'#E4405F' },
+                { key:'email', icon:'fas fa-envelope', color:'var(--primary-red)' }
+            ];
+            grid.innerHTML = items.map(item => {
+                const cfg = connectLinks[item.key] || {};
+                return `<a href="${safeText(normalizeConnectUrl(cfg.url))}" target="${item.key==='email'?'_self':'_blank'}" rel="noopener" class="social-card"><i class="${item.icon}" style="color:${item.color};"></i><span>${safeText(cfg.label || item.key)}</span></a>`;
+            }).join('');
+        }
+
+        function populateConnectForm() {
+            document.getElementById('connect-facebook-label').value = connectLinks.facebook?.label || 'Facebook DM';
+            document.getElementById('connect-facebook-url').value = connectLinks.facebook?.url || 'https://facebook.com';
+            document.getElementById('connect-instagram-label').value = connectLinks.instagram?.label || 'Instagram';
+            document.getElementById('connect-instagram-url').value = connectLinks.instagram?.url || 'https://instagram.com';
+            document.getElementById('connect-email-label').value = connectLinks.email?.label || 'Gmail Contact';
+            const emailUrl = connectLinks.email?.url || 'mailto:patcharchive@gmail.com';
+            document.getElementById('connect-email-url').value = emailUrl.replace(/^mailto:/i, '');
+        }
+
+        document.getElementById('admin-connect-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const emailInput = document.getElementById('connect-email-url').value.trim();
+            connectLinks = {
+                facebook: { label: document.getElementById('connect-facebook-label').value.trim(), url: normalizeConnectUrl(document.getElementById('connect-facebook-url').value) },
+                instagram: { label: document.getElementById('connect-instagram-label').value.trim(), url: normalizeConnectUrl(document.getElementById('connect-instagram-url').value) },
+                email: { label: document.getElementById('connect-email-label').value.trim(), url: normalizeConnectUrl(emailInput) }
+            };
+            saveData();
+            renderConnect();
+            alert('Connect links updated successfully.');
+        });
 
         function renderAnnouncement() {
             const section = document.getElementById('announcement-section');
@@ -2095,7 +2180,7 @@
         });
 
         function switchAdminSubtab(tab) {
-            const ids = ['add','manage','bid','edit','ann','rec','sec','users'];
+            const ids = ['add','manage','bid','edit','ann','rec','sec','users','connect'];
             ids.forEach(t => {
                 const btn = document.getElementById(`atab-${t}`);
                 if (btn) btn.classList.toggle('active', t === tab);
@@ -2103,14 +2188,15 @@
             document.querySelectorAll('.admin-tab-content').forEach(el => el.style.display = 'none');
             const targetMap = {
                 add: 'admin-product-form', manage: 'admin-manage-products', bid: 'admin-bid-panel', edit: 'admin-edit-product-form',
-                ann: 'admin-announcement-form', rec: 'admin-receipt-form', sec: 'admin-creds-form', users: 'admin-user-logs'
+                ann: 'admin-announcement-form', rec: 'admin-receipt-form', sec: 'admin-creds-form', users: 'admin-user-logs', connect: 'admin-connect-form'
             };
             const target = document.getElementById(targetMap[tab]);
-            if (target) target.style.display = ['bid','add','manage','edit','ann','rec','sec','users'].includes(tab) ? 'block' : 'none';
+            if (target) target.style.display = ['bid','add','manage','edit','ann','rec','sec','users','connect'].includes(tab) ? 'block' : 'none';
             if (tab === 'manage') renderAdminProductManagement();
             if (tab === 'bid') { populateAdminSelectors(); renderAdminBidManagement(); }
             if (tab === 'ann') populateAnnouncementForm();
             if (tab === 'users') renderAdminUsersAndLogs();
+            if (tab === 'connect') populateConnectForm();
         }
 
         // Product image source toggle
@@ -2384,7 +2470,7 @@
         // Crown Admin
         function triggerAdminModal() {
             if (isAdmin) {
-                populateAdminSelectors(); renderAdminProductManagement(); renderAdminBidManagement(); populateAnnouncementForm(); renderAdminUsersAndLogs(); openModal('admin-dashboard-modal');
+                populateAdminSelectors(); renderAdminProductManagement(); renderAdminBidManagement(); populateAnnouncementForm(); renderAdminUsersAndLogs(); populateConnectForm(); openModal('admin-dashboard-modal');
             } else openModal('admin-login-modal');
         }
 
@@ -2394,7 +2480,7 @@
             const p = document.getElementById('admin-pass-input').value;
             if (u === adminCreds.username && p === adminCreds.password) {
                 isAdmin = true; document.body.classList.add('admin-mode'); closeModal('admin-login-modal');
-                populateAdminSelectors(); renderAdminProductManagement(); renderAdminBidManagement(); populateAnnouncementForm(); renderAdminUsersAndLogs(); openModal('admin-dashboard-modal'); renderBids();
+                populateAdminSelectors(); renderAdminProductManagement(); renderAdminBidManagement(); populateAnnouncementForm(); renderAdminUsersAndLogs(); populateConnectForm(); openModal('admin-dashboard-modal'); renderBids();
             } else alert('Incorrect Admin Credentials.');
         });
 
@@ -2515,11 +2601,15 @@
         }
 
         // Initialize App
+        isAdmin = false;
+        document.body.classList.remove('admin-mode');
+        document.querySelectorAll('.admin-indicator').forEach(el => el.style.display = 'none');
         renderAuthHeader();
         renderProducts();
         renderBids();
         renderReceipts();
         renderAnnouncement();
+        renderConnect();
     </script>
 </body>
 </html>
