@@ -920,6 +920,39 @@
                 padding: 22px;
             }
         }
+
+        /* Product media gallery + 15-second thumbnail slideshow */
+        .product-media-frame { position:relative; width:100%; height:100%; overflow:hidden; }
+        .product-media-frame img, .product-media-frame video { width:100%; height:100%; object-fit:cover; display:block; will-change:transform,opacity; transition:opacity .3s ease, transform .3s ease; }
+        .product-media-frame.slide-next img, .product-media-frame.slide-next video { animation:productSlideNext .65s ease both; }
+        @keyframes productSlideNext { from { opacity:.25; transform:translateX(18px) scale(.985); } to { opacity:1; transform:translateX(0) scale(1); } }
+        .product-media-count { position:absolute; right:8px; bottom:8px; z-index:4; background:rgba(0,0,0,.72); color:#fff; padding:3px 7px; border-radius:999px; font-size:.68rem; font-weight:800; }
+        .detail-gallery { display:flex; flex-direction:column; gap:10px; }
+        .detail-main-media { position:relative; border-radius:8px; overflow:hidden; background:#000; border:1px solid var(--card-border); }
+        .detail-main-media img { width:100%; aspect-ratio:3/4; object-fit:cover; display:block; transition:opacity .18s ease, transform .18s ease; }
+        .detail-thumbs { display:flex; gap:8px; overflow-x:auto; padding:2px; scrollbar-width:thin; }
+        .detail-thumb { width:66px; height:82px; flex:0 0 auto; border-radius:6px; overflow:hidden; border:1px solid #333; background:#111; cursor:pointer; padding:0; }
+        .detail-thumb.active { border-color:var(--primary-red); box-shadow:0 0 0 2px rgba(230,57,70,.18); }
+        .detail-thumb img, .detail-thumb video { width:100%; height:100%; object-fit:cover; }
+        .media-manager { background:#181818; border:1px solid #282828; border-radius:8px; padding:12px; margin-top:10px; }
+        .media-manager-title { display:flex; justify-content:space-between; gap:10px; align-items:center; margin-bottom:8px; }
+        .media-list { display:grid; grid-template-columns:repeat(auto-fill,minmax(90px,1fr)); gap:8px; margin-top:10px; }
+        .media-item { position:relative; border:1px solid #333; border-radius:7px; overflow:hidden; background:#0e0e0e; aspect-ratio:1/1.1; }
+        .media-item img, .media-item video { width:100%; height:100%; object-fit:cover; }
+        .media-item-remove { position:absolute; top:4px; right:4px; width:24px; height:24px; border-radius:50%; background:rgba(0,0,0,.82); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:900; cursor:pointer; border:1px solid #444; }
+        .media-hint { color:var(--text-muted); font-size:.72rem; line-height:1.45; margin-top:5px; }
+        .user-log-table-wrap { overflow:auto; border:1px solid var(--card-border); border-radius:8px; background:#111; }
+        .user-log-table { width:100%; border-collapse:collapse; min-width:780px; font-size:.8rem; }
+        .user-log-table th, .user-log-table td { padding:9px 10px; border-bottom:1px solid #262626; text-align:left; vertical-align:top; }
+        .user-log-table th { color:var(--gold); background:#181818; position:sticky; top:0; z-index:1; }
+        .user-log-table td { color:#ddd; }
+        .status-pill { display:inline-block; padding:3px 8px; border-radius:999px; font-size:.68rem; font-weight:800; border:1px solid #333; background:#222; }
+        .status-pill.ok { color:#8cffb1; border-color:rgba(140,255,177,.25); }
+        .status-pill.muted { color:#aaa; }
+        .log-card { background:#181818; border:1px solid #2a2a2a; border-radius:8px; padding:10px; margin-top:8px; }
+        .log-card strong { color:#fff; }
+        .log-card small { color:var(--text-muted); display:block; margin-top:4px; }
+        @media (max-width:600px) { .detail-thumb{width:58px;height:72px;} .media-list{grid-template-columns:repeat(auto-fill,minmax(76px,1fr));} }
     </style>
 </head>
 <body>
@@ -1010,10 +1043,6 @@
                     <i class="fab fa-instagram" style="color: #E4405F;"></i>
                     <span>Instagram</span>
                 </a>
-                <a href="https://tiktok.com" target="_blank" class="social-card">
-                    <i class="fab fa-tiktok" style="color: #25F4EE;"></i>
-                    <span>TikTok</span>
-                </a>
                 <a href="mailto:patcharchive@gmail.com" class="social-card">
                     <i class="fas fa-envelope" style="color: var(--primary-red);"></i>
                     <span>Gmail Contact</span>
@@ -1037,11 +1066,14 @@
         <div class="modal-box" style="max-width: 750px;">
             <span class="close-modal" onclick="closeModal('product-detail-modal')">&times;</span>
             <div class="detail-grid">
-                <div style="border-radius: 8px; overflow: hidden; background:#000; border: 1px solid var(--card-border); position:relative;">
-                    <img id="detail-img" src="" alt="Product Preview" style="width:100%; aspect-ratio:3/4; object-fit:cover;">
-                    <div id="detail-sold-overlay" class="sold-out-overlay" style="display:none;">
-                        <span class="sold-out-badge">SOLD OUT</span>
+                <div class="detail-gallery">
+                    <div class="detail-main-media">
+                        <img id="detail-img" src="" alt="Product Preview"><video id="detail-video" src="" controls playsinline style="display:none;width:100%;aspect-ratio:3/4;object-fit:cover;"></video>
+                        <div id="detail-sold-overlay" class="sold-out-overlay" style="display:none;">
+                            <span class="sold-out-badge">SOLD OUT</span>
+                        </div>
                     </div>
+                    <div id="detail-thumbs" class="detail-thumbs"></div>
                 </div>
                 <div>
                     <span id="detail-category" class="product-category-tag">CATEGORY</span>
@@ -1205,6 +1237,7 @@
                 <button class="admin-subtab" id="atab-ann" onclick="switchAdminSubtab('ann')"><i class="fas fa-bullhorn"></i> Announcement</button>
                 <button class="admin-subtab" id="atab-rec" onclick="switchAdminSubtab('rec')"><i class="fas fa-receipt"></i> Receipts</button>
                 <button class="admin-subtab" id="atab-sec" onclick="switchAdminSubtab('sec')"><i class="fas fa-lock"></i> Security</button>
+                <button class="admin-subtab" id="atab-users" onclick="switchAdminSubtab('users')"><i class="fas fa-users"></i> User Logs</button>
             </div>
 
             <!-- Tab 1: Add New Product -->
@@ -1258,6 +1291,18 @@
                     <label>Upload File</label>
                     <input type="file" id="prod-img-file" accept="image/*">
                 </div>
+                <div class="media-manager">
+                    <div class="media-manager-title"><strong style="color:var(--white);">Sub Images / Gallery</strong><span class="status-pill">Unlimited*</span></div>
+                    <div class="form-group">
+                        <label>Paste Extra Image URLs</label>
+                        <textarea id="prod-extra-urls" rows="4" placeholder="One image URL per line"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Or Upload Multiple Images</label>
+                        <input type="file" id="prod-extra-files" accept="image/*" multiple>
+                    </div>
+                    <div class="media-hint">The first image is the main thumbnail. Every extra image appears in the product detail gallery and joins the 15-second thumbnail slideshow.</div>
+                </div>
 
                 <div class="form-group">
                     <label>Full Product Description & Details</label>
@@ -1310,6 +1355,27 @@
                 <div class="form-group">
                     <label>Image URL</label>
                     <input type="text" id="edit-prod-img" required>
+                </div>
+                <div class="media-manager">
+                    <div class="media-manager-title"><strong style="color:var(--white);">Manage Gallery + Videos</strong><span class="status-pill">Unlimited*</span></div>
+                    <div id="edit-media-list" class="media-list"></div>
+                    <div class="form-group" style="margin-top:10px;">
+                        <label>Add Extra Image URLs</label>
+                        <textarea id="edit-extra-urls" rows="4" placeholder="One image URL per line"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Add Multiple Image Files</label>
+                        <input type="file" id="edit-extra-files" accept="image/*" multiple>
+                    </div>
+                    <div class="form-group">
+                        <label>Add Video URLs</label>
+                        <textarea id="edit-video-urls" rows="3" placeholder="One MP4/WebM video URL per line"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Add Multiple Video Files</label>
+                        <input type="file" id="edit-video-files" accept="video/*" multiple></input>
+                    </div>
+                    <div class="media-hint">Remove existing gallery media with ×, then add as many images/videos as needed. This editor is shared by regular products and bidding products.</div>
                 </div>
                 <div class="form-group">
                     <label>Product Description</label>
@@ -1376,8 +1442,28 @@
                         </div>
                     </div>
                     <div class="form-group">
-                        <label>Image URL</label>
+                        <label>Main Image URL</label>
                         <input type="url" id="bid-img-url" placeholder="https://..." required>
+                    </div>
+                    <div class="media-manager">
+                        <div class="media-manager-title"><strong style="color:var(--white);">Bidding Gallery + Videos</strong><span class="status-pill">Unlimited*</span></div>
+                        <div class="form-group">
+                            <label>Extra Image URLs</label>
+                            <textarea id="bid-extra-urls" rows="4" placeholder="One image URL per line"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Upload Multiple Images</label>
+                            <input type="file" id="bid-extra-files" accept="image/*" multiple>
+                        </div>
+                        <div class="form-group">
+                            <label>Video URLs</label>
+                            <textarea id="bid-video-urls" rows="3" placeholder="One MP4/WebM video URL per line"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Upload Multiple Videos</label>
+                            <input type="file" id="bid-video-files" accept="video/*" multiple>
+                        </div>
+                        <div class="media-hint">Extra images are used in the auction gallery and 15-second thumbnail slideshow. Videos can be opened in the product gallery and are also included in the auction media slideshow.</div>
                     </div>
                     <div class="form-group">
                         <label>Description</label>
@@ -1489,6 +1575,15 @@
                 </div>
                 <button type="submit" class="btn" style="background: var(--danger); border-color: var(--danger); width: 100%;">Update Admin Login Credentials</button>
             </form>
+
+            <!-- Tab 8: User Logs -->
+            <div id="admin-user-logs" class="admin-tab-content" style="display:none;">
+                <div class="admin-section-divider"><strong style="color:var(--white);">Users & Saved Customer Details</strong></div>
+                <p style="font-size:.8rem;color:var(--text-muted);margin-bottom:12px;">See every registered user, email verification state, Facebook name, shipping address, and last update.</p>
+                <div id="admin-users-container"></div>
+                <div class="admin-section-divider"><strong style="color:var(--white);">Activity Log</strong></div>
+                <div id="admin-activity-logs-container"></div>
+            </div>
         </div>
     </div>
 
@@ -1524,13 +1619,21 @@
         let users = JSON.parse(localStorage.getItem('patch_users')) || defaultUsers;
         let products = JSON.parse(localStorage.getItem('patch_products')) || defaultProducts;
         let bids = JSON.parse(localStorage.getItem('patch_bids')) || defaultBids;
+        bids = bids.map(b => ({ ...b, subImages: Array.isArray(b.subImages) ? b.subImages : [], subVideos: Array.isArray(b.subVideos) ? b.subVideos : [] }));
         let receipts = JSON.parse(localStorage.getItem('patch_receipts')) || defaultReceipts;
         let announcement = JSON.parse(localStorage.getItem('patch_announcement')) || null;
         let adminCreds = JSON.parse(localStorage.getItem('patch_admin_creds')) || { username: "admin", password: "123" };
         let currentUser = JSON.parse(localStorage.getItem('patch_current_user')) || null;
         let pendingVerification = JSON.parse(localStorage.getItem('patch_pending_verification')) || null;
+        let activityLogs = JSON.parse(localStorage.getItem('patch_activity_logs')) || [];
         let isAdmin = false;
         let currentFilter = 'all';
+        let editingSubImages = [];
+        const productMediaTimers = new Map();
+
+        products = products.map(p => ({ ...p, subImages: Array.isArray(p.subImages) ? p.subImages : [] }));
+        bids = bids.map(b => ({ ...b, subImages: Array.isArray(b.subImages) ? b.subImages : [] }));
+        users = users.map(u => ({ ...u, facebookName: u.facebookName || '', shippingAddress: u.shippingAddress || '', detailsUpdatedAt: u.detailsUpdatedAt || '' }));
 
         if (window.emailjs && EMAILJS_CONFIG.publicKey && !EMAILJS_CONFIG.publicKey.startsWith('YOUR_')) {
             emailjs.init({ publicKey: EMAILJS_CONFIG.publicKey, limitRate: { id: 'patch-archive', throttle: 1000 } });
@@ -1545,6 +1648,7 @@
             localStorage.setItem('patch_admin_creds', JSON.stringify(adminCreds));
             localStorage.setItem('patch_current_user', JSON.stringify(currentUser));
             localStorage.setItem('patch_pending_verification', JSON.stringify(pendingVerification));
+            localStorage.setItem('patch_activity_logs', JSON.stringify(activityLogs));
         }
 
         function safeText(value) {
@@ -1617,8 +1721,55 @@
             renderProducts();
         }
 
+        function getProductMedia(item) {
+            const extras = Array.isArray(item.subImages) ? item.subImages.filter(Boolean) : [];
+            return [...new Set([item.img, ...extras].filter(Boolean))];
+        }
+
+        function getBidMediaEntries(item) {
+            const entries = [];
+            if (item && item.img) entries.push({ type:'image', src:item.img });
+            (Array.isArray(item?.subImages) ? item.subImages : []).filter(Boolean).forEach(src => entries.push({ type:'image', src }));
+            (Array.isArray(item?.subVideos) ? item.subVideos : []).filter(Boolean).forEach(src => entries.push({ type:'video', src }));
+            const seen=new Set();
+            return entries.filter(entry => { const key=entry.type+'|'+entry.src; if(seen.has(key)) return false; seen.add(key); return true; });
+        }
+
+        function getItemMediaEntries(item, isBid=false) {
+            return isBid ? getBidMediaEntries(item) : getProductMedia(item).map(src => ({type:'image', src}));
+        }
+
+        function clearProductMediaTimers() {
+            productMediaTimers.forEach(timer => clearInterval(timer));
+            productMediaTimers.clear();
+        }
+
+        function startProductThumbnailSlideshow() {
+            clearProductMediaTimers();
+            document.querySelectorAll('[data-media-slideshow="product"]').forEach(frame => {
+                const id = Number(frame.dataset.productId);
+                const item = products.find(p => Number(p.id) === id);
+                const media = item ? getProductMedia(item) : [];
+                const img = frame.querySelector('img');
+                if (!img || media.length <= 1) return;
+                let index = 0;
+                const timer = setInterval(() => {
+                    frame.classList.remove('slide-next');
+                    void frame.offsetWidth;
+                    index = (index + 1) % media.length;
+                    img.src = media[index];
+                    const count = frame.querySelector('.product-media-count');
+                    if (count) count.textContent = `${index + 1}/${media.length}`;
+                    frame.classList.add('slide-next');
+                    setTimeout(() => frame.classList.remove('slide-next'), 700);
+                }, 15000);
+                productMediaTimers.set(id,timer);
+            });
+        }
+
         function renderProducts() {
             const grid = document.getElementById('product-grid');
+            clearProductMediaTimers();
             grid.innerHTML = '';
             const filtered = currentFilter === 'all' ? products : products.filter(p => p.category === currentFilter);
             if (filtered.length === 0) {
@@ -1626,12 +1777,17 @@
                 return;
             }
             filtered.forEach(item => {
+                const media = getProductMedia(item);
                 const soldOutOverlay = item.isSoldOut ? `<div class="sold-out-overlay"><span class="sold-out-badge">SOLD OUT</span></div>` : '';
+                const count = media.length > 1 ? `<span class="product-media-count">1/${media.length}</span>` : '';
                 grid.innerHTML += `
                     <div class="product-card" onclick="openProductDetail(${Number(item.id)})">
                         <div class="product-img-wrapper">
-                            ${soldOutOverlay}
-                            <img src="${safeText(item.img)}" alt="${safeText(item.title)}">
+                            <div class="product-media-frame" data-media-slideshow="product" data-product-id="${Number(item.id)}">
+                                ${soldOutOverlay}
+                                <img src="${safeText(media[0] || item.img)}" alt="${safeText(item.title)}">
+                                ${count}
+                            </div>
                         </div>
                         <div class="product-info">
                             <span class="product-category-tag">${safeText(item.category.replace('-', ' '))}</span>
@@ -1640,42 +1796,73 @@
                             <div class="product-card-tags">
                                 <span class="mini-badge">Size: ${safeText(item.size || 'OS')}</span>
                                 <span class="mini-badge">${safeText(item.condition || 'Good')}</span>
+                                ${media.length > 1 ? `<span class="mini-badge">${media.length} photos</span>` : ''}
                             </div>
                         </div>
                     </div>`;
             });
+            startProductThumbnailSlideshow();
         }
+
+        function renderDetailThumbs(prod) {
+            const media=getProductMedia(prod).map(src=>({type:'image',src}));
+            renderDetailThumbsGeneric(prod, media);
+        }
+
+        function renderDetailThumbsGeneric(item, media) {
+            const thumbs=document.getElementById('detail-thumbs');
+            thumbs.innerHTML=media.map((entry,index)=>`<button type="button" class="detail-thumb ${index===0?'active':''}" onclick='setDetailMedia(${JSON.stringify(entry)}, this)' title="${entry.type==='video'?'Video':'Image'} ${index+1}">${entry.type==='video'?`<video src="${safeText(entry.src)}" muted preload="metadata"></video>`:`<img src="${safeText(entry.src)}" alt="${safeText(item.title)} ${index+1}">`}</button>`).join('');
+        }
+
+        function showDetailMedia(entry) {
+            const img=document.getElementById('detail-img');
+            const video=document.getElementById('detail-video');
+            if(entry && entry.type==='video'){
+                img.style.display='none'; video.style.display='block'; video.src=entry.src; video.currentTime=0;
+            } else {
+                video.pause(); video.removeAttribute('src'); video.load(); video.style.display='none'; img.style.display='block'; img.src=entry?.src || ''; img.style.opacity='1'; img.style.transform='scale(1)';
+            }
+        }
+
+        function setDetailMedia(entry, btn) {
+            showDetailMedia(entry);
+            document.querySelectorAll('#detail-thumbs .detail-thumb').forEach(el=>el.classList.remove('active'));
+            if(btn) btn.classList.add('active');
+        }
+
+        function setDetailImage(src, btn) { setDetailMedia({type:'image',src}, btn); }
 
         function openProductDetail(id) {
             const prod = products.find(p => Number(p.id) === Number(id));
             if (!prod) return;
-            document.getElementById('detail-img').src = prod.img;
-            document.getElementById('detail-title').textContent = prod.title;
-            document.getElementById('detail-category').textContent = prod.category.replace('-', ' ');
-            document.getElementById('detail-price').textContent = `₱${Number(prod.price).toLocaleString()}`;
-            document.getElementById('detail-size').textContent = prod.size || 'OS';
-            document.getElementById('detail-condition').textContent = prod.condition || 'Vintage';
-            document.getElementById('detail-desc').textContent = prod.description || 'No detailed description available.';
-            const soldOverlay = document.getElementById('detail-sold-overlay');
-            const actionContainer = document.getElementById('detail-action-container');
-            if (prod.isSoldOut) {
-                soldOverlay.style.display = 'flex';
-                actionContainer.innerHTML = `<button class="btn btn-dark" style="width:100%; cursor:not-allowed;" disabled>ITEM SOLD OUT</button>`;
-            } else {
-                soldOverlay.style.display = 'none';
-                actionContainer.innerHTML = `<a href="https://facebook.com" target="_blank" rel="noopener" class="btn" style="width:100%;"><i class="fab fa-facebook-f"></i> Message Owner to Order</a>`;
-            }
+            window.currentDetailIsBid=false;
+            const media=getProductMedia(prod).map(src=>({type:'image',src}));
+            renderDetailThumbsGeneric(prod, media);
+            showDetailMedia(media[0]);
+            document.getElementById('detail-title').textContent=prod.title;
+            document.getElementById('detail-category').textContent=prod.category.replace('-',' ');
+            document.getElementById('detail-price').textContent=`₱${Number(prod.price).toLocaleString()}`;
+            document.getElementById('detail-size').textContent=prod.size||'OS';
+            document.getElementById('detail-condition').textContent=prod.condition||'Vintage';
+            document.getElementById('detail-desc').textContent=prod.description||'No detailed description available.';
+            const soldOverlay=document.getElementById('detail-sold-overlay');
+            const actionContainer=document.getElementById('detail-action-container');
+            if(prod.isSoldOut){ soldOverlay.style.display='flex'; actionContainer.innerHTML=`<button class="btn btn-dark" style="width:100%;cursor:not-allowed;" disabled>ITEM SOLD OUT</button>`; }
+            else { soldOverlay.style.display='none'; actionContainer.innerHTML=`<a href="https://facebook.com" target="_blank" rel="noopener" class="btn" style="width:100%;"><i class="fab fa-facebook-f"></i> Message Owner to Order</a>`; }
             openModal('product-detail-modal');
         }
 
         function renderBids() {
             const grid = document.getElementById('bidding-grid');
+            clearBidMediaTimers();
             grid.innerHTML = '';
             if (bids.length === 0) {
                 grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;color:var(--text-muted);padding:30px;">No active auctions at the moment.</div>`;
                 return;
             }
             bids.forEach(item => {
+                const media=getBidMediaEntries(item);
+                const first=media[0];
                 const soldOutOverlay = item.isSoldOut ? `<div class="sold-out-overlay"><span class="sold-out-badge">SOLD OUT</span></div>` : '';
                 const adminActions = isAdmin ? `
                     <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;">
@@ -1683,12 +1870,16 @@
                         <button class="btn btn-sm btn-dark" onclick="event.stopPropagation(); openAdminEditItem('bid', ${Number(item.id)})"><i class="fas fa-edit"></i> Edit</button>
                         <button class="btn btn-sm btn-danger" onclick="event.stopPropagation(); deleteBid(${Number(item.id)})"><i class="fas fa-trash"></i></button>
                     </div>` : '';
+                const mediaCount=media.length>1 ? `<span class="mini-badge">${media.length} media</span>` : '';
                 grid.innerHTML += `
-                    <div class="product-card bidding-card">
+                    <div class="product-card bidding-card" onclick="openBidDetail(${Number(item.id)})">
                         <div class="product-img-wrapper">
                             ${soldOutOverlay}
                             <div class="bid-badge">${item.isSoldOut ? 'Auction Closed' : 'Active Auction'}</div>
-                            <img src="${safeText(item.img)}" alt="${safeText(item.title)}">
+                            <div class="product-media-frame" data-media-slideshow="bid" data-bid-id="${Number(item.id)}">
+                                <div class="bid-media-holder">${createMediaElement(first || {type:'image',src:item.img})}</div>
+                                ${media.length>1 ? `<span class="product-media-count">1/${media.length}</span>` : ''}
+                            </div>
                         </div>
                         <div class="product-info">
                             <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;">
@@ -1699,11 +1890,33 @@
                                 <div>Highest Bid: <strong style="color:var(--gold)">₱${Number(item.highestBid || item.startPrice || 0).toLocaleString()}</strong></div>
                                 <div>Bidder: <span class="bid-user">${safeText(item.highestBidderTag || '@Guest')}</span></div>
                             </div>
-                            <button class="btn btn-gold" style="width:100%;margin-bottom:${isAdmin ? '8px' : '0'}" onclick="triggerBidProcess(${Number(item.id)})" ${item.isSoldOut ? 'disabled' : ''}>${item.isSoldOut ? 'AUCTION CLOSED' : 'Place Bid / Offer'}</button>
+                            <button class="btn btn-gold" style="width:100%;margin-bottom:${isAdmin ? '8px' : '0'}" onclick="event.stopPropagation(); triggerBidProcess(${Number(item.id)})" ${item.isSoldOut ? 'disabled' : ''}>${item.isSoldOut ? 'AUCTION CLOSED' : 'Place Bid / Offer'}</button>
+                            <div class="product-card-tags"><span class="mini-badge">${media.filter(m=>m.type==='image').length} photos</span><span class="mini-badge">${media.filter(m=>m.type==='video').length} videos</span>${mediaCount}</div>
                             ${adminActions}
                         </div>
                     </div>`;
             });
+            startBidThumbnailSlideshow();
+        }
+
+        function openBidDetail(id) {
+            const item=bids.find(b=>Number(b.id)===Number(id));
+            if(!item) return;
+            window.currentDetailIsBid=true;
+            const media=getBidMediaEntries(item);
+            renderDetailThumbsGeneric(item, media);
+            showDetailMedia(media[0]);
+            document.getElementById('detail-title').textContent=item.title;
+            document.getElementById('detail-category').textContent=(item.category||'').replace('-',' ');
+            document.getElementById('detail-price').textContent=`Highest ₱${Number(item.highestBid || item.startPrice || 0).toLocaleString()}`;
+            document.getElementById('detail-size').textContent=item.size||'OS';
+            document.getElementById('detail-condition').textContent=item.condition||'Vintage';
+            document.getElementById('detail-desc').textContent=item.description||'No detailed description available.';
+            const sold=document.getElementById('detail-sold-overlay');
+            const action=document.getElementById('detail-action-container');
+            if(item.isSoldOut){ sold.style.display='flex'; action.innerHTML='<button class="btn btn-dark" style="width:100%;cursor:not-allowed;" disabled>AUCTION CLOSED</button>'; }
+            else { sold.style.display='none'; action.innerHTML=`<button class="btn btn-gold" style="width:100%;" onclick="triggerBidProcess(${Number(item.id)});closeModal('product-detail-modal');">Place Bid / Offer</button>`; }
+            openModal('product-detail-modal');
         }
 
         function renderReceipts() {
@@ -1758,58 +1971,91 @@
             saveData(); renderBids(); renderAdminBidManagement(); populateAdminSelectors();
         }
 
+        function renderEditMediaList() {
+            const box=document.getElementById('edit-media-list');
+            if(!box) return;
+            const imageItems=editingSubImages.map((src,index)=>`<div class="media-item"><img src="${safeText(src)}" alt="Sub image ${index+1}"><button type="button" class="media-item-remove" onclick="removeEditingSubImage(${index})" title="Remove">&times;</button></div>`);
+            const videoItems=editingSubVideos.map((src,index)=>`<div class="media-item"><video src="${safeText(src)}" muted preload="metadata"></video><button type="button" class="media-item-remove" onclick="removeEditingSubVideo(${index})" title="Remove">&times;</button></div>`);
+            box.innerHTML=[...imageItems,...videoItems].join('') || `<div style="color:var(--text-muted);font-size:.76rem;grid-column:1/-1;">No extra media yet.</div>`;
+        }
+        function removeEditingSubImage(index){ editingSubImages.splice(index,1); renderEditMediaList(); }
+        function removeEditingSubVideo(index){ editingSubVideos.splice(index,1); renderEditMediaList(); }
+        async function collectEditSubMedia(){
+            const urls=parseUrlLines(document.getElementById('edit-extra-urls').value);
+            const files=await readFilesAsDataUrls(document.getElementById('edit-extra-files').files);
+            const videoUrls=parseUrlLines(document.getElementById('edit-video-urls').value);
+            const videoFiles=await readVideoFilesAsDataUrls(document.getElementById('edit-video-files').files);
+            return { images:[...editingSubImages,...urls,...files], videos:[...editingSubVideos,...videoUrls,...videoFiles] };
+        }
+
         function openAdminEditItem(type, id) {
-            let item = type === 'product' ? products.find(p => Number(p.id) === Number(id)) : bids.find(b => Number(b.id) === Number(id));
-            if (!item) return;
-            document.getElementById('edit-prod-type').value = type;
-            document.getElementById('edit-prod-id').value = item.id;
-            document.getElementById('edit-prod-title').value = item.title || '';
-            document.getElementById('edit-prod-category').value = item.category || 'vintage-shirts';
-            document.getElementById('edit-prod-price').value = type === 'product' ? item.price : item.highestBid;
-            document.getElementById('edit-prod-size').value = item.size || '';
-            document.getElementById('edit-prod-condition').value = item.condition || '';
-            document.getElementById('edit-prod-img').value = item.img || '';
-            document.getElementById('edit-prod-desc').value = item.description || '';
-            document.getElementById('atab-edit').style.display = 'block';
+            const item=type==='product' ? products.find(p=>Number(p.id)===Number(id)) : bids.find(b=>Number(b.id)===Number(id));
+            if(!item) return;
+            document.getElementById('edit-prod-type').value=type;
+            document.getElementById('edit-prod-id').value=item.id;
+            document.getElementById('edit-prod-title').value=item.title||'';
+            document.getElementById('edit-prod-category').value=item.category||'vintage-shirts';
+            document.getElementById('edit-prod-price').value=type==='product'?item.price:item.highestBid;
+            document.getElementById('edit-prod-size').value=item.size||'';
+            document.getElementById('edit-prod-condition').value=item.condition||'';
+            document.getElementById('edit-prod-img').value=item.img||'';
+            document.getElementById('edit-prod-desc').value=item.description||'';
+            editingSubImages=Array.isArray(item.subImages)?[...item.subImages]:[];
+            editingSubVideos=Array.isArray(item.subVideos)?[...item.subVideos]:[];
+            document.getElementById('edit-extra-urls').value='';
+            document.getElementById('edit-extra-files').value='';
+            document.getElementById('edit-video-urls').value='';
+            document.getElementById('edit-video-files').value='';
+            renderEditMediaList();
+            document.getElementById('atab-edit').style.display='block';
             switchAdminSubtab('edit');
         }
 
-        document.getElementById('admin-edit-product-form').addEventListener('submit', (e) => {
+        document.getElementById('admin-edit-product-form').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const type = document.getElementById('edit-prod-type').value;
-            const id = Number(document.getElementById('edit-prod-id').value);
-            if (type === 'product') {
-                const index = products.findIndex(p => Number(p.id) === id);
-                if (index !== -1) {
-                    products[index].title = document.getElementById('edit-prod-title').value;
-                    products[index].category = document.getElementById('edit-prod-category').value;
-                    products[index].price = Number(document.getElementById('edit-prod-price').value);
-                    products[index].size = document.getElementById('edit-prod-size').value;
-                    products[index].condition = document.getElementById('edit-prod-condition').value;
-                    products[index].img = document.getElementById('edit-prod-img').value;
-                    products[index].description = document.getElementById('edit-prod-desc').value;
-                    saveData(); renderProducts(); renderAdminProductManagement();
+            try {
+                const type=document.getElementById('edit-prod-type').value;
+                const id=Number(document.getElementById('edit-prod-id').value);
+                const updatedMedia=await collectEditSubMedia();
+                if(type==='product'){
+                    const index=products.findIndex(p=>Number(p.id)===id);
+                    if(index!==-1){
+                        products[index].title=document.getElementById('edit-prod-title').value.trim();
+                        products[index].category=document.getElementById('edit-prod-category').value;
+                        products[index].price=Number(document.getElementById('edit-prod-price').value);
+                        products[index].size=document.getElementById('edit-prod-size').value.trim();
+                        products[index].condition=document.getElementById('edit-prod-condition').value.trim();
+                        products[index].img=document.getElementById('edit-prod-img').value.trim();
+                        products[index].description=document.getElementById('edit-prod-desc').value.trim();
+                        products[index].subImages=updatedMedia.images;
+                        products[index].subVideos=updatedMedia.videos;
+                        saveData(); renderProducts(); renderAdminProductManagement();
+                    }
+                } else {
+                    const index=bids.findIndex(b=>Number(b.id)===id);
+                    if(index!==-1){
+                        bids[index].title=document.getElementById('edit-prod-title').value.trim();
+                        bids[index].category=document.getElementById('edit-prod-category').value;
+                        bids[index].highestBid=Number(document.getElementById('edit-prod-price').value);
+                        bids[index].size=document.getElementById('edit-prod-size').value.trim();
+                        bids[index].condition=document.getElementById('edit-prod-condition').value.trim();
+                        bids[index].img=document.getElementById('edit-prod-img').value.trim();
+                        bids[index].description=document.getElementById('edit-prod-desc').value.trim();
+                        bids[index].subImages=updatedMedia.images;
+                        bids[index].subVideos=updatedMedia.videos;
+                        saveData(); renderBids(); renderAdminBidManagement(); populateAdminSelectors();
+                    }
                 }
-            } else {
-                const index = bids.findIndex(b => Number(b.id) === id);
-                if (index !== -1) {
-                    bids[index].title = document.getElementById('edit-prod-title').value;
-                    bids[index].category = document.getElementById('edit-prod-category').value;
-                    bids[index].highestBid = Number(document.getElementById('edit-prod-price').value);
-                    bids[index].size = document.getElementById('edit-prod-size').value;
-                    bids[index].condition = document.getElementById('edit-prod-condition').value;
-                    bids[index].img = document.getElementById('edit-prod-img').value;
-                    bids[index].description = document.getElementById('edit-prod-desc').value;
-                    saveData(); renderBids(); renderAdminBidManagement(); populateAdminSelectors();
-                }
-            }
-            document.getElementById('atab-edit').style.display = 'none';
-            switchAdminSubtab(type === 'bid' ? 'bid' : 'manage');
-            alert('Changes saved successfully.');
+                document.getElementById('atab-edit').style.display='none';
+                editingSubImages=[];
+                editingSubVideos=[];
+                switchAdminSubtab(type==='bid'?'bid':'manage');
+                alert('Changes saved successfully.');
+            } catch(error){ console.error(error); alert(error.message||'Could not save changes.'); }
         });
 
         function switchAdminSubtab(tab) {
-            const ids = ['add','manage','bid','edit','ann','rec','sec'];
+            const ids = ['add','manage','bid','edit','ann','rec','sec','users'];
             ids.forEach(t => {
                 const btn = document.getElementById(`atab-${t}`);
                 if (btn) btn.classList.toggle('active', t === tab);
@@ -1817,13 +2063,14 @@
             document.querySelectorAll('.admin-tab-content').forEach(el => el.style.display = 'none');
             const targetMap = {
                 add: 'admin-product-form', manage: 'admin-manage-products', bid: 'admin-bid-panel', edit: 'admin-edit-product-form',
-                ann: 'admin-announcement-form', rec: 'admin-receipt-form', sec: 'admin-creds-form'
+                ann: 'admin-announcement-form', rec: 'admin-receipt-form', sec: 'admin-creds-form', users: 'admin-user-logs'
             };
             const target = document.getElementById(targetMap[tab]);
-            if (target) target.style.display = tab === 'bid' || tab === 'add' || tab === 'manage' || tab === 'edit' || tab === 'ann' || tab === 'rec' || tab === 'sec' ? 'block' : 'none';
+            if (target) target.style.display = ['bid','add','manage','edit','ann','rec','sec','users'].includes(tab) ? 'block' : 'none';
             if (tab === 'manage') renderAdminProductManagement();
             if (tab === 'bid') { populateAdminSelectors(); renderAdminBidManagement(); }
             if (tab === 'ann') populateAnnouncementForm();
+            if (tab === 'users') renderAdminUsersAndLogs();
         }
 
         // Product image source toggle
@@ -1833,43 +2080,77 @@
             document.getElementById('group-img-file').style.display = mode === 'file' ? 'block' : 'none';
         }
 
-        document.getElementById('admin-product-form').addEventListener('submit', (e) => {
+        function readFilesAsDataUrls(fileList, perFileLimit = 4 * 1024 * 1024) {
+            const files=Array.from(fileList||[]);
+            return Promise.all(files.map(file=>new Promise((resolve,reject)=>{
+                if(!file.type.startsWith('image/')) return reject(new Error(`${file.name} is not an image file.`));
+                if(file.size>perFileLimit) return reject(new Error(`${file.name} is larger than 4 MB.`));
+                const reader=new FileReader();
+                reader.onload=()=>resolve(reader.result);
+                reader.onerror=()=>reject(new Error(`Could not read ${file.name}.`));
+                reader.readAsDataURL(file);
+            })));
+        }
+
+        function readVideoFilesAsDataUrls(fileList, perFileLimit = 12 * 1024 * 1024) {
+            const files=Array.from(fileList||[]);
+            return Promise.all(files.map(file=>new Promise((resolve,reject)=>{
+                if(!file.type.startsWith('video/')) return reject(new Error(`${file.name} is not a video file.`));
+                if(file.size>perFileLimit) return reject(new Error(`${file.name} is larger than 12 MB.`));
+                const reader=new FileReader(); reader.onload=()=>resolve(reader.result); reader.onerror=()=>reject(new Error(`Could not read ${file.name}.`)); reader.readAsDataURL(file);
+            })));
+        }
+
+        function parseUrlLines(value) { return String(value||'').split(/\r?\n/).map(v=>v.trim()).filter(Boolean); }
+
+        document.getElementById('admin-product-form').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const mode = document.getElementById('prod-img-source').value;
-            const saveProductObj = (imgUrl) => {
-                const newProd = {
-                    id: Date.now(), title: document.getElementById('prod-title').value, category: document.getElementById('prod-category').value,
-                    price: Number(document.getElementById('prod-price').value), size: document.getElementById('prod-size').value,
-                    condition: document.getElementById('prod-condition').value, description: document.getElementById('prod-desc').value,
-                    img: imgUrl, isSoldOut: false
+            try {
+                const mode=document.getElementById('prod-img-source').value;
+                let mainImg='';
+                if(mode==='file') {
+                    const file=document.getElementById('prod-img-file').files?.[0];
+                    if(!file) return alert('Please select the main image file.');
+                    [mainImg]=await readFilesAsDataUrls([file]);
+                } else {
+                    mainImg=document.getElementById('prod-img-url').value.trim();
+                    if(!mainImg) return alert('Please enter a main image URL.');
+                }
+                const extraUrls=parseUrlLines(document.getElementById('prod-extra-urls').value);
+                const extraFiles=await readFilesAsDataUrls(document.getElementById('prod-extra-files').files);
+                const subImages=[...extraUrls,...extraFiles];
+                const newProd={
+                    id:Date.now(), title:document.getElementById('prod-title').value.trim(), category:document.getElementById('prod-category').value,
+                    price:Number(document.getElementById('prod-price').value), size:document.getElementById('prod-size').value.trim(),
+                    condition:document.getElementById('prod-condition').value.trim(), description:document.getElementById('prod-desc').value.trim(),
+                    img:mainImg, subImages, isSoldOut:false
                 };
-                products.unshift(newProd); saveData(); renderProducts(); closeModal('admin-dashboard-modal'); alert('Product published successfully!');
-            };
-            if (mode === 'file') {
-                const file = document.getElementById('prod-img-file').files?.[0];
-                if (!file) return alert('Please select an image file to upload.');
-                if (file.size > 4 * 1024 * 1024) return alert('Please keep the image around 4 MB or smaller for browser storage.');
-                const reader = new FileReader(); reader.onload = e2 => saveProductObj(e2.target.result); reader.readAsDataURL(file);
-            } else {
-                const url = document.getElementById('prod-img-url').value.trim();
-                if (!url) return alert('Please enter an image URL.');
-                saveProductObj(url);
-            }
+                products.unshift(newProd); saveData(); renderProducts(); renderAdminProductManagement();
+                e.target.reset(); toggleImgSource(); closeModal('admin-dashboard-modal'); alert(`Product published with ${subImages.length} sub-image(s).`);
+            } catch(error){ console.error(error); alert(error.message||'Could not publish the product.'); }
         });
 
         // Add new bidding product
-        document.getElementById('admin-new-bid-form').addEventListener('submit', (e) => {
+        document.getElementById('admin-new-bid-form').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const startPrice = Number(document.getElementById('bid-start-price').value);
-            const newBid = {
-                id: Date.now(), title: document.getElementById('bid-title').value, category: document.getElementById('bid-category').value,
-                price: startPrice, startPrice, highestBid: startPrice, highestBidderTag: '@Guest', size: document.getElementById('bid-size').value,
-                condition: document.getElementById('bid-condition').value, description: document.getElementById('bid-desc').value,
-                img: document.getElementById('bid-img-url').value.trim(), isSoldOut: false
-            };
-            if (!newBid.img) return alert('Please enter an image URL.');
-            bids.unshift(newBid); saveData(); renderBids(); renderAdminBidManagement(); populateAdminSelectors();
-            e.target.reset(); alert('New bidding product published!');
+            try {
+                const startPrice=Number(document.getElementById('bid-start-price').value);
+                const mainImg=document.getElementById('bid-img-url').value.trim();
+                const extraImages=parseUrlLines(document.getElementById('bid-extra-urls').value);
+                const imageFiles=await readFilesAsDataUrls(document.getElementById('bid-extra-files').files);
+                const videoUrls=parseUrlLines(document.getElementById('bid-video-urls').value);
+                const videoFiles=await readVideoFilesAsDataUrls(document.getElementById('bid-video-files').files);
+                if(!mainImg) return alert('Please enter a main image URL.');
+                const newBid={
+                    id:Date.now(), title:document.getElementById('bid-title').value.trim(), category:document.getElementById('bid-category').value,
+                    price:startPrice, startPrice, highestBid:startPrice, highestBidderTag:'@Guest', size:document.getElementById('bid-size').value.trim(),
+                    condition:document.getElementById('bid-condition').value.trim(), description:document.getElementById('bid-desc').value.trim(),
+                    img:mainImg, subImages:[...extraImages,...imageFiles], subVideos:[...videoUrls,...videoFiles], isSoldOut:false
+                };
+                bids.unshift(newBid); saveData(); renderBids(); renderAdminBidManagement(); populateAdminSelectors();
+                e.target.reset();
+                alert(`New bidding product published with ${newBid.subImages.length} extra image(s) and ${newBid.subVideos.length} video(s).`);
+            } catch(error){ console.error(error); alert(error.message||'Could not publish the bidding product.'); }
         });
 
         function triggerBidProcess(bidId) {
@@ -1957,7 +2238,7 @@
                 await startVerification(found);
                 return;
             }
-            currentUser = found; saveData(); renderAuthHeader(); closeModal('auth-modal');
+            currentUser = found; saveData(); addActivityLog('User logged in', currentUser); renderAuthHeader(); closeModal('auth-modal');
         });
 
         document.getElementById('register-form').addEventListener('submit', async (e) => {
@@ -1986,6 +2267,7 @@
             const user = users.find(u => u.id === pendingVerification.userId);
             if (!user) return alert('User account not found.');
             user.emailVerified = true;
+            addActivityLog('Email verified', user);
             pendingVerification = null;
             saveData();
             alert('Email verified successfully. You can now log in.');
@@ -2019,8 +2301,10 @@
             const shippingAddress = document.getElementById('details-address').value.trim();
             currentUser.facebookName = facebookName;
             currentUser.shippingAddress = shippingAddress;
+            currentUser.detailsUpdatedAt = new Date().toISOString();
             const idx = users.findIndex(u => u.id === currentUser.id);
             if (idx !== -1) users[idx] = currentUser;
+            addActivityLog('Customer details updated', currentUser);
             saveData();
             const emailed = await sendOwnerDetailsEmail(currentUser);
             if (emailed) {
@@ -2030,10 +2314,37 @@
             }
         });
 
+        function addActivityLog(action, user) {
+            activityLogs.unshift({
+                id: Date.now()+Math.random(), action,
+                userId:user?.id||'', displayName:user?.displayName||'', username:user?.username||'', email:user?.email||'',
+                facebookName:user?.facebookName||'', shippingAddress:user?.shippingAddress||'', timestamp:new Date().toISOString()
+            });
+            activityLogs=activityLogs.slice(0,500);
+            saveData();
+            if(isAdmin) renderAdminUsersAndLogs();
+        }
+
+        function renderAdminUsersAndLogs() {
+            const usersBox=document.getElementById('admin-users-container');
+            const logsBox=document.getElementById('admin-activity-logs-container');
+            if(!usersBox||!logsBox) return;
+            const sorted=[...users].sort((a,b)=>Number(Boolean(b.facebookName||b.shippingAddress))-Number(Boolean(a.facebookName||a.shippingAddress)));
+            usersBox.innerHTML=sorted.length?`<div class="user-log-table-wrap"><table class="user-log-table"><thead><tr><th>User</th><th>Email</th><th>Verified</th><th>Facebook Name</th><th>Shipping Address</th><th>Last Updated</th></tr></thead><tbody>${sorted.map(u=>`
+                <tr><td><strong>${safeText(u.displayName)}</strong><br><span style="color:var(--text-muted);">@${safeText(u.id)}</span></td>
+                <td>${safeText(u.email||'—')}</td>
+                <td><span class="status-pill ${u.emailVerified?'ok':'muted'}">${u.emailVerified?'Verified':'Unverified'}</span></td>
+                <td>${safeText(u.facebookName||'—')}</td>
+                <td style="white-space:pre-line;max-width:280px;">${safeText(u.shippingAddress||'—')}</td>
+                <td>${safeText(u.detailsUpdatedAt?new Date(u.detailsUpdatedAt).toLocaleString():'—')}</td></tr>`).join('')}</tbody></table></div>`:`<p style="color:var(--text-muted);">No users yet.</p>`;
+            const logs=[...activityLogs].sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp));
+            logsBox.innerHTML=logs.length?logs.slice(0,200).map(log=>`<div class="log-card"><strong>${safeText(log.action||'Activity')}</strong> — ${safeText(log.displayName||log.userId||'Unknown User')}<div style="margin-top:5px;color:#ccc;font-size:.82rem;">Facebook: ${safeText(log.facebookName||'—')}</div><div style="color:#ccc;font-size:.82rem;white-space:pre-line;">Shipping: ${safeText(log.shippingAddress||'—')}</div><small>${safeText(log.email||'')} · ${safeText(log.timestamp?new Date(log.timestamp).toLocaleString():'')}</small></div>`).join(''):`<p style="color:var(--text-muted);">No activity logs yet.</p>`;
+        }
+
         // Crown Admin
         function triggerAdminModal() {
             if (isAdmin) {
-                populateAdminSelectors(); renderAdminProductManagement(); renderAdminBidManagement(); populateAnnouncementForm(); openModal('admin-dashboard-modal');
+                populateAdminSelectors(); renderAdminProductManagement(); renderAdminBidManagement(); populateAnnouncementForm(); renderAdminUsersAndLogs(); openModal('admin-dashboard-modal');
             } else openModal('admin-login-modal');
         }
 
@@ -2043,7 +2354,7 @@
             const p = document.getElementById('admin-pass-input').value;
             if (u === adminCreds.username && p === adminCreds.password) {
                 isAdmin = true; document.body.classList.add('admin-mode'); closeModal('admin-login-modal');
-                populateAdminSelectors(); renderAdminProductManagement(); renderAdminBidManagement(); populateAnnouncementForm(); openModal('admin-dashboard-modal'); renderBids();
+                populateAdminSelectors(); renderAdminProductManagement(); renderAdminBidManagement(); populateAnnouncementForm(); renderAdminUsersAndLogs(); openModal('admin-dashboard-modal'); renderBids();
             } else alert('Incorrect Admin Credentials.');
         });
 
