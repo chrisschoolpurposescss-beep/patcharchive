@@ -2195,7 +2195,6 @@
                 ...options,
                 headers: {
                     apikey: SUPABASE_PUBLISHABLE_KEY,
-                    Authorization: 'Bearer ' + SUPABASE_PUBLISHABLE_KEY,
                     'Content-Type': 'application/json',
                     ...(options.headers || {})
                 }
@@ -2258,15 +2257,23 @@
 
         async function testSharedStore() {
             try {
-                const rows = await supabaseRest('site_settings?select=setting_value&setting_key=eq.store_state&limit=1', {method:'GET'});
+                const marker = { test: 'PATCH_ARCHIVE_BROWSER_TEST', at: new Date().toISOString() };
+                await supabaseRest('site_settings?on_conflict=setting_key', {
+                    method: 'POST',
+                    headers: { 'Prefer': 'resolution=merge-duplicates,return=representation' },
+                    body: JSON.stringify([{ setting_key: 'store_state_test', setting_value: marker, updated_at: marker.at }])
+                });
+                const rows = await supabaseRest('site_settings?select=setting_value&setting_key=eq.store_state_test&limit=1', {method:'GET'});
+                const ok = Array.isArray(rows) && rows[0]?.setting_value?.test === marker.test;
                 cloudReady = true;
                 renderCloudStatus();
-                const state = Array.isArray(rows) ? rows[0]?.setting_value : null;
-                alert('Shared store connection works.\n\nStore state found: ' + (state ? 'YES' : 'NO') + '\n\nSupabase is reachable from this website.');
+                alert(ok
+                    ? 'Shared store READ + WRITE works from this website.\n\nSupabase is reachable and browser writes are allowed.'
+                    : 'Supabase responded, but the browser write test could not be read back.');
             } catch (err) {
                 cloudReady = false;
                 renderCloudStatus();
-                alert('Shared store connection FAILED:\n\n' + (err?.message || err));
+                alert('Shared store browser test FAILED:\n\n' + (err?.message || err));
             }
         }
 
