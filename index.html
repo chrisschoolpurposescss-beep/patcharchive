@@ -2201,6 +2201,10 @@
             return sbClient.from(table);
         }
 
+        // Single owner account for this Patch Archive installation.
+        // This removes the fragile dependency on the profiles table for determining owner UI access.
+        const OWNER_USER_ID = '7f5a7303-f0e6-4545-99ef-6372eb8e447a';
+
         async function getCloudAdminProfile(userOverride = null) {
             if (!sbClient) return null;
             let user = userOverride;
@@ -2209,17 +2213,13 @@
                 if (userError || !data?.user) return null;
                 user = data.user;
             }
-            const { data: profile, error } = await cloudTable('profiles')
-                .select('id, username, display_name, is_admin, email_verified')
-                .eq('id', user.id)
-                .maybeSingle();
-            if (error || !profile || !profile.is_admin) return null;
-            return { user, profile };
+            if (!user?.id || user.id !== OWNER_USER_ID) return null;
+            return { user, profile: { id: user.id, username: user.email || 'owner', display_name: 'Patch Archive Owner', is_admin: true, email_verified: true } };
         }
 
         async function cloudAdminRequired() {
             const admin = await getCloudAdminProfile();
-            if (!admin) throw new Error('Your Supabase account is not an owner/admin account. Create the Auth user and set profiles.is_admin = true first.');
+            if (!admin) throw new Error('This Supabase account is not the configured Patch Archive owner account.');
             return admin;
         }
 
@@ -3571,7 +3571,7 @@
                 const profile = await getCloudAdminProfile(data?.user || null);
                 if (!profile) {
                     await sbClient.auth.signOut();
-                    throw new Error('Login succeeded, but this account is not marked as Owner/Admin. Check public.profiles for this user and set is_admin = true.');
+                    throw new Error('Login succeeded, but this is not the configured Patch Archive owner account. Use the owner email attached to the configured owner UID.');
                 }
                 isAdmin = true;
                 cloudInitialLoadDone = false;
