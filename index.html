@@ -1109,6 +1109,27 @@
         .logo-current-image { width:100%; max-height:220px; object-fit:contain; border-radius:10px; background:#090909; border:1px solid #333; padding:8px; }
         @media (max-width:600px){ .logo-shape-options{grid-template-columns:1fr;} }
 
+        /* Shop search / filters */
+        .shop-tools { display:grid; grid-template-columns:minmax(220px,1.6fr) minmax(170px,1fr) minmax(170px,1fr) auto; gap:10px; margin:0 auto 18px; align-items:center; }
+        .shop-tools input, .shop-tools select { width:100%; padding:11px 13px; border-radius:8px; border:1px solid var(--card-border); background:#151515; color:var(--white); font-family:inherit; outline:none; }
+        .shop-tools input:focus, .shop-tools select:focus { border-color:var(--primary-red); }
+        .shop-tools .btn { white-space:nowrap; }
+        .filter-summary { color:var(--text-muted); font-size:.78rem; margin:0 0 14px; text-align:center; }
+        .category-manage-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+        .category-list { display:flex; flex-wrap:wrap; gap:7px; margin-top:10px; }
+        .category-chip { display:inline-flex; align-items:center; gap:7px; background:#1b1b1b; border:1px solid #333; border-radius:999px; padding:5px 9px; color:#ddd; font-size:.75rem; }
+        .category-chip button { width:20px; height:20px; border-radius:50%; background:#2b2b2b; color:#aaa; cursor:pointer; }
+        .category-chip button:hover { background:var(--danger); color:#fff; }
+        .admin-all-products-list { display:grid; gap:9px; margin-top:12px; }
+        .inventory-row { display:grid; grid-template-columns:56px minmax(0,1fr) auto; gap:10px; align-items:center; background:#171717; border:1px solid #2c2c2c; border-radius:8px; padding:8px; }
+        .inventory-row img { width:56px; height:56px; border-radius:6px; object-fit:cover; background:#000; }
+        .inventory-meta strong { display:block; color:#fff; font-size:.84rem; }
+        .inventory-meta small { color:var(--text-muted); display:block; margin-top:2px; }
+        .inventory-actions { display:flex; flex-wrap:wrap; gap:6px; justify-content:flex-end; }
+        .tag-brand { color:var(--gold); font-weight:800; }
+        @media (max-width:820px){ .shop-tools{grid-template-columns:1fr 1fr;} }
+        @media (max-width:600px){ .shop-tools{grid-template-columns:1fr;} .category-manage-grid{grid-template-columns:1fr;} .inventory-row{grid-template-columns:48px minmax(0,1fr);} .inventory-actions{grid-column:1/-1; justify-content:flex-start;} }
+
         @media (max-width:600px) { .detail-thumb{width:58px;height:72px;} .media-list{grid-template-columns:repeat(auto-fill,minmax(76px,1fr));} }
     </style>
 </head>
@@ -1158,14 +1179,14 @@
             <p>Click on any piece to view full details, size, condition, and purchase info</p>
         </div>
 
-        <div class="category-bar">
-            <button class="cat-btn active" onclick="filterCategory('all', this)">All Items</button>
-            <button class="cat-btn" onclick="filterCategory('vintage-shirts', this)">Vintage T-Shirts</button>
-            <button class="cat-btn" onclick="filterCategory('bags', this)">Bags</button>
-            <button class="cat-btn" onclick="filterCategory('womens', this)">Women's Wear</button>
-            <button class="cat-btn" onclick="filterCategory('jorts', this)">Jorts</button>
-            <button class="cat-btn" onclick="filterCategory('pants', this)">Pants</button>
+        <div class="shop-tools">
+            <input id="shop-search" type="search" placeholder="Search products, brands, or keywords..." autocomplete="off">
+            <select id="shop-category-filter" aria-label="Filter by category"></select>
+            <select id="shop-brand-filter" aria-label="Filter by brand"></select>
+            <button class="btn btn-dark" type="button" onclick="clearShopFilters()"><i class="fas fa-rotate-left"></i> Clear</button>
         </div>
+        <div id="shop-filter-summary" class="filter-summary"></div>
+        <div class="category-bar" id="category-bar"></div>
 
         <div class="grid" id="product-grid"></div>
     </section>
@@ -1374,7 +1395,7 @@
 
     <!-- ADMIN CONTROL DASHBOARD MODAL -->
     <div class="modal-overlay" id="admin-dashboard-modal">
-        <div class="modal-box" style="max-width: 650px; max-height: 90vh; overflow-y: auto;">
+        <div class="modal-box" style="max-width: 860px; max-height: 92vh; overflow-y: auto;">
             <span class="close-modal" onclick="closeModal('admin-dashboard-modal')">&times;</span>
             <h3 style="color: var(--gold);"><i class="fas fa-crown"></i> Owner Control Panel</h3>
             
@@ -1390,6 +1411,8 @@
                 <button class="admin-subtab" id="atab-users" onclick="switchAdminSubtab('users')"><i class="fas fa-users"></i> User Logs</button>
                 <button class="admin-subtab" id="atab-connect" onclick="switchAdminSubtab('connect')"><i class="fas fa-share-nodes"></i> Connect</button>
                 <button class="admin-subtab" id="atab-logo" onclick="switchAdminSubtab('logo')"><i class="fas fa-image"></i> Logo & Branding</button>
+                <button class="admin-subtab" id="atab-catalog" onclick="switchAdminSubtab('catalog')"><i class="fas fa-tags"></i> Categories & Brands</button>
+                <button class="admin-subtab" id="atab-allproducts" onclick="switchAdminSubtab('allproducts')"><i class="fas fa-boxes-stacked"></i> All Products</button>
             </div>
 
             <!-- Tab 1: Add New Product -->
@@ -1400,19 +1423,17 @@
                 </div>
                 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
                     <div class="form-group">
-                        <label>Category</label>
-                        <select id="prod-category">
-                            <option value="vintage-shirts">Vintage T-Shirts</option>
-                            <option value="bags">Bags</option>
-                            <option value="womens">Women's Wear</option>
-                            <option value="jorts">Jorts</option>
-                            <option value="pants">Pants</option>
-                        </select>
+                        <label>Category <span style="color:var(--text-muted);font-weight:400;">(optional)</span></label>
+                        <select id="prod-category"></select>
                     </div>
                     <div class="form-group">
                         <label>Price (₱)</label>
                         <input type="number" id="prod-price" placeholder="1200" required>
                     </div>
+                </div>
+                <div class="form-group">
+                    <label>Brand <span style="color:var(--text-muted);font-weight:400;">(optional)</span></label>
+                    <select id="prod-brand"></select>
                 </div>
 
                 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
@@ -1480,19 +1501,17 @@
                 </div>
                 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
                     <div class="form-group">
-                        <label>Category</label>
-                        <select id="edit-prod-category">
-                            <option value="vintage-shirts">Vintage T-Shirts</option>
-                            <option value="bags">Bags</option>
-                            <option value="womens">Women's Wear</option>
-                            <option value="jorts">Jorts</option>
-                            <option value="pants">Pants</option>
-                        </select>
+                        <label>Category <span style="color:var(--text-muted);font-weight:400;">(optional)</span></label>
+                        <select id="edit-prod-category"></select>
                     </div>
                     <div class="form-group">
                         <label>Price / Bid (₱)</label>
                         <input type="number" id="edit-prod-price" required>
                     </div>
+                </div>
+                <div class="form-group">
+                    <label>Brand <span style="color:var(--text-muted);font-weight:400;">(optional)</span></label>
+                    <select id="edit-prod-brand"></select>
                 </div>
                 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
                     <div class="form-group">
@@ -1569,19 +1588,17 @@
                     </div>
                     <div class="form-grid-2">
                         <div class="form-group">
-                            <label>Category</label>
-                            <select id="bid-category">
-                                <option value="vintage-shirts">Vintage T-Shirts</option>
-                                <option value="bags">Bags</option>
-                                <option value="womens">Women's Wear</option>
-                                <option value="jorts">Jorts</option>
-                                <option value="pants">Pants</option>
-                            </select>
+                            <label>Category <span style="color:var(--text-muted);font-weight:400;">(optional)</span></label>
+                            <select id="bid-category"></select>
                         </div>
                         <div class="form-group">
                             <label>Starting Bid (₱)</label>
                             <input type="number" id="bid-start-price" min="0" required>
                         </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Brand <span style="color:var(--text-muted);font-weight:400;">(optional)</span></label>
+                        <select id="bid-brand"></select>
                     </div>
                     <div class="form-grid-2">
                         <div class="form-group">
@@ -1887,23 +1904,63 @@
                 <div class="admin-section-divider"><strong style="color:var(--white);">Activity Log</strong></div>
                 <div id="admin-activity-logs-container"></div>
             </div>
+
+        <!-- Tab: Categories & Brands -->
+        <div id="admin-catalog-form" class="admin-tab-content" style="display:none; padding:0 2rem 2rem;">
+            <div class="section-header" style="text-align:left;margin-bottom:1rem;">
+                <h2 style="font-size:1.3rem;color:var(--gold);">Website Categorizer</h2>
+                <p>Manage product categories and brands. Categories and brands are optional when adding products.</p>
+            </div>
+            <div class="category-manage-grid">
+                <div class="media-manager">
+                    <strong style="color:#fff;">Product Categories</strong>
+                    <div class="form-group" style="margin-top:10px;">
+                        <label>Add Category</label>
+                        <div style="display:flex;gap:8px;"><input id="new-category-name" type="text" placeholder="e.g. Hoodie, Cap, Shorts"><button type="button" class="btn btn-gold" onclick="addSiteCategory()">Add</button></div>
+                    </div>
+                    <div class="category-list" id="category-manager-list"></div>
+                </div>
+                <div class="media-manager">
+                    <strong style="color:#fff;">Brands</strong>
+                    <div class="form-group" style="margin-top:10px;">
+                        <label>Add Brand</label>
+                        <div style="display:flex;gap:8px;"><input id="new-brand-name" type="text" placeholder="e.g. Nike, JNCO, Levi's"><button type="button" class="btn btn-gold" onclick="addSiteBrand()">Add</button></div>
+                    </div>
+                    <div class="category-list" id="brand-manager-list"></div>
+                </div>
+            </div>
+            <div class="admin-section-divider">
+                <strong style="color:#fff;">How it works</strong>
+                <p style="color:var(--text-muted);font-size:.8rem;margin-top:6px;">Create a category such as Hoodie or Cap and/or a brand such as Nike or JNCO. Those options automatically appear in the product and bidding forms and in the public Shop filters. Products may leave either field blank.</p>
+            </div>
+        </div>
+
+        <!-- Tab: All Products -->
+        <div id="admin-all-products" class="admin-tab-content" style="display:none; padding:0 2rem 2rem;">
+            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between;">
+                <div><strong style="color:#fff;font-size:1rem;">All Posted Products</strong><div style="color:var(--text-muted);font-size:.78rem;">Shop products and bidding posts in one place.</div></div>
+                <input id="admin-all-products-search" type="search" placeholder="Search all posted products..." style="min-width:240px;max-width:100%;padding:10px 12px;background:#151515;border:1px solid #333;border-radius:7px;color:#fff;">
+            </div>
+            <div id="admin-all-products-container" class="admin-all-products-list"></div>
         </div>
     </div>
+
+        </div>
 
     <!-- JAVASCRIPT LOGIC -->
     <script>
         const defaultUsers = [];
 
         const defaultProducts = [
-            { id: 1, title: "90s Band Tour Vintage Tee", category: "vintage-shirts", price: 1200, size: "Large", condition: "9/10 Vintage", description: "Single stitch vintage tee with natural vintage fade. Super soft cotton.", img: "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&q=80&w=600", isSoldOut: false },
+            { id: 1, title: "90s Band Tour Vintage Tee", category: "t-shirt", price: 1200, size: "Large", condition: "9/10 Vintage", description: "Single stitch vintage tee with natural vintage fade. Super soft cotton.", img: "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&q=80&w=600", isSoldOut: false },
             { id: 2, title: "Archive Canvas Utility Bag", category: "bags", price: 950, size: "One Size", condition: "10/10 Mint", description: "Heavyweight canvas archive shoulder bag with multiple tactical pockets.", img: "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&q=80&w=600", isSoldOut: false },
             { id: 3, title: "Vintage Leather Biker Jacket", category: "womens", price: 1800, size: "Medium", condition: "8.5/10 Good", description: "Genuine heavy leather biker jacket with silver hardware detailing.", img: "https://images.unsplash.com/photo-1551028719-00167b16eac5?auto=format&fit=crop&q=80&w=600", isSoldOut: true },
-            { id: 4, title: "Distressed Denim Jorts", category: "jorts", price: 750, size: "32 Waist", condition: "9/10 Clean", description: "Custom raw hem baggy denim jorts with vintage wash.", img: "https://images.unsplash.com/photo-1591195853828-11db59a44f6b?auto=format&fit=crop&q=80&w=600", isSoldOut: false },
+            { id: 4, title: "Distressed Denim Shorts", category: "shorts", price: 750, size: "32 Waist", condition: "9/10 Clean", description: "Custom raw hem baggy denim shorts with vintage wash.", img: "https://images.unsplash.com/photo-1591195853828-11db59a44f6b?auto=format&fit=crop&q=80&w=600", isSoldOut: false },
             { id: 5, title: "Double Knee Work Pants", category: "pants", price: 1500, size: "34 Waist", condition: "9/10 Great", description: "Heavy duty workwear canvas pants with double reinforced knee panels.", img: "https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?auto=format&fit=crop&q=80&w=600", isSoldOut: false }
         ];
 
         const defaultBids = [
-            { id: 101, title: "1994 Rare Graphic Grail Tee", category: "vintage-shirts", price: 2400, startPrice: 1500, highestBid: 2400, highestBidderTag: "@Guest", size: "Large", condition: "9/10 Rare", description: "Rare 1994 graphic grail tee up for live auction.", img: "https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?auto=format&fit=crop&q=80&w=600", isSoldOut: false },
+            { id: 101, title: "1994 Rare Graphic Grail Tee", category: "t-shirt", price: 2400, startPrice: 1500, highestBid: 2400, highestBidderTag: "@Guest", size: "Large", condition: "9/10 Rare", description: "Rare 1994 graphic grail tee up for live auction.", img: "https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?auto=format&fit=crop&q=80&w=600", isSoldOut: false },
             { id: 102, title: "Japanese Denim Tactical Bag", category: "bags", price: 1800, startPrice: 1200, highestBid: 1800, highestBidderTag: "@Guest", size: "OS", condition: "10/10 Mint", description: "Japanese tactical bag auction piece.", img: "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?auto=format&fit=crop&q=80&w=600", isSoldOut: false }
         ];
 
@@ -1940,6 +1997,16 @@
 
         let isAdmin = false;
         let currentFilter = 'all';
+        let currentSearch = '';
+        let currentBrandFilter = 'all';
+        let siteCategories = JSON.parse(localStorage.getItem('patch_site_categories')) || [
+            { id:'t-shirt', name:'T Shirt' },
+            { id:'bags', name:'Bags' },
+            { id:'womens', name:"Women's Wear" },
+            { id:'shorts', name:'Shorts' },
+            { id:'pants', name:'Pants' }
+        ];
+        let siteBrands = JSON.parse(localStorage.getItem('patch_site_brands')) || [];
         let editingSubImages = [];
         let editingSubVideos = [];
         const productMediaTimers = new Map();
@@ -1948,6 +2015,22 @@
         products = products.map(p => ({ ...p, subImages: Array.isArray(p.subImages) ? p.subImages : [] }));
         bids = bids.map(b => ({ ...b, subImages: Array.isArray(b.subImages) ? b.subImages : [] }));
         users = users.map(u => ({ ...u, facebookName: u.facebookName || '', shippingAddress: u.shippingAddress || '', detailsUpdatedAt: u.detailsUpdatedAt || '' }));
+
+        const LEGACY_CATEGORY_MAP = { 'vintage-shirts':'t-shirt', 'jorts':'shorts' };
+        const LEGACY_CATEGORY_LABELS = { 'vintage-shirts':'T Shirt', 'jorts':'Shorts' };
+        function normalizeCategoryValue(value) { const v=String(value||'').trim(); return LEGACY_CATEGORY_MAP[v] || v; }
+        function getCategoryName(value) { const v=normalizeCategoryValue(value); const item=siteCategories.find(c=>c.id===v); return item ? item.name : (LEGACY_CATEGORY_LABELS[v] || v || 'Uncategorized'); }
+        function normalizeCatalogData() {
+            siteCategories = siteCategories.filter(c=>c && c.id && c.name).map(c=>({id:String(c.id),name:String(c.name).trim()}));
+            const seenCats=new Set(); siteCategories=siteCategories.filter(c=>{if(seenCats.has(c.id))return false;seenCats.add(c.id);return true;});
+            const seenBrands=new Set(); siteBrands=siteBrands.map(b=>String(b||'').trim()).filter(Boolean).filter(b=>{const k=b.toLowerCase();if(seenBrands.has(k))return false;seenBrands.add(k);return true;});
+            products = products.map(p=>({...p, category:normalizeCategoryValue(p.category), brand:String(p.brand||'').trim()}));
+            bids = bids.map(b=>({...b, category:normalizeCategoryValue(b.category), brand:String(b.brand||'').trim()}));
+            const existing=new Set(siteCategories.map(c=>c.id));
+            products.concat(bids).forEach(item=>{ const cat=normalizeCategoryValue(item.category); if(cat && !existing.has(cat)){ siteCategories.push({id:cat,name:cat.replace(/-/g,' ').replace(/\b\w/g,m=>m.toUpperCase())}); existing.add(cat); } });
+            saveData();
+        }
+        normalizeCatalogData();
 
         if (window.emailjs && EMAILJS_CONFIG.publicKey && !EMAILJS_CONFIG.publicKey.startsWith('YOUR_')) {
             emailjs.init({ publicKey: EMAILJS_CONFIG.publicKey, limitRate: { id: 'patch-archive', throttle: 1000 } });
@@ -1965,6 +2048,8 @@
             localStorage.setItem('patch_activity_logs', JSON.stringify(activityLogs));
             localStorage.setItem('patch_connect_links', JSON.stringify(connectLinks));
             localStorage.setItem('patch_site_logo', JSON.stringify(siteLogo));
+            localStorage.setItem('patch_site_categories', JSON.stringify(siteCategories));
+            localStorage.setItem('patch_site_brands', JSON.stringify(siteBrands));
         }
 
         function safeText(value) {
@@ -2156,10 +2241,59 @@
             `;
         }
 
+        function populateShopFilters() {
+            const bar=document.getElementById('category-bar');
+            const catSelect=document.getElementById('shop-category-filter');
+            const brandSelect=document.getElementById('shop-brand-filter');
+            if(bar){
+                bar.innerHTML=`<button class="cat-btn ${currentFilter==='all'?'active':''}" type="button" onclick="filterCategory('all', this)">All Items</button>` + siteCategories.map(c=>`<button class="cat-btn ${currentFilter===c.id?'active':''}" type="button" onclick="filterCategory('${safeText(c.id)}', this)">${safeText(c.name)}</button>`).join('');
+            }
+            if(catSelect){ catSelect.innerHTML=`<option value="all">All Categories</option>`+siteCategories.map(c=>`<option value="${safeText(c.id)}">${safeText(c.name)}</option>`).join(''); catSelect.value=currentFilter; }
+            if(brandSelect){ brandSelect.innerHTML=`<option value="all">All Brands</option>`+siteBrands.map(b=>`<option value="${safeText(b)}">${safeText(b)}</option>`).join(''); brandSelect.value=currentBrandFilter; }
+        }
+        function clearShopFilters(){ currentFilter='all'; currentBrandFilter='all'; currentSearch=''; const s=document.getElementById('shop-search'); if(s)s.value=''; populateShopFilters(); renderProducts(); }
+        function productMatchesFilters(p){
+            const hay=[p.title,p.description,p.brand,getCategoryName(p.category)].join(' ').toLowerCase();
+            const searchOK=!currentSearch || hay.includes(currentSearch.toLowerCase());
+            const catOK=currentFilter==='all' || normalizeCategoryValue(p.category)===currentFilter;
+            const brandOK=currentBrandFilter==='all' || String(p.brand||'').toLowerCase()===String(currentBrandFilter||'').toLowerCase();
+            return searchOK && catOK && brandOK;
+        }
+
+        function populateAdminCatalogSelects(){
+            const selectMap={
+                'prod-category':'', 'edit-prod-category':'', 'bid-category':''
+            };
+            Object.keys(selectMap).forEach(id=>{const el=document.getElementById(id);if(el){const prev=el.value;el.innerHTML=`<option value="">Uncategorized</option>`+siteCategories.map(c=>`<option value="${safeText(c.id)}">${safeText(c.name)}</option>`).join(''); if([...el.options].some(o=>o.value===prev))el.value=prev;}});
+            const brandIds=['prod-brand','edit-prod-brand','bid-brand'];
+            brandIds.forEach(id=>{const el=document.getElementById(id);if(el){const prev=el.value;el.innerHTML=`<option value="">No Brand / Unspecified</option>`+siteBrands.map(b=>`<option value="${safeText(b)}">${safeText(b)}</option>`).join(''); if([...el.options].some(o=>o.value===prev))el.value=prev;}});
+        }
+        function renderCatalogManagers(){
+            const cats=document.getElementById('category-manager-list'), brands=document.getElementById('brand-manager-list');
+            if(cats) cats.innerHTML=siteCategories.map(c=>`<span class="category-chip">${safeText(c.name)}<button type="button" title="Delete" onclick="removeSiteCategory('${safeText(c.id)}')">&times;</button></span>`).join('')||'<span style="color:var(--text-muted);font-size:.78rem;">No categories yet.</span>';
+            if(brands) brands.innerHTML=siteBrands.map(b=>`<span class="category-chip">${safeText(b)}<button type="button" title="Delete" onclick="removeSiteBrand(${JSON.stringify(b)})">&times;</button></span>`).join('')||'<span style="color:var(--text-muted);font-size:.78rem;">No brands yet.</span>';
+        }
+        function makeSlug(label){ return String(label||'').trim().toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'') || `category-${Date.now()}`; }
+        function addSiteCategory(){ const input=document.getElementById('new-category-name'); const name=(input?.value||'').trim(); if(!name)return alert('Enter a category name.'); const id=makeSlug(name); if(siteCategories.some(c=>c.name.toLowerCase()===name.toLowerCase()||c.id===id))return alert('That category already exists.'); siteCategories.push({id,name}); saveData(); populateAdminCatalogSelects(); populateShopFilters(); renderCatalogManagers(); input.value=''; renderProducts(); }
+        function addSiteBrand(){ const input=document.getElementById('new-brand-name'); const name=(input?.value||'').trim(); if(!name)return alert('Enter a brand name.'); if(siteBrands.some(b=>b.toLowerCase()===name.toLowerCase()))return alert('That brand already exists.'); siteBrands.push(name); saveData(); populateAdminCatalogSelects(); populateShopFilters(); renderCatalogManagers(); input.value=''; renderProducts(); }
+        function removeSiteCategory(id){ const used=products.concat(bids).some(p=>normalizeCategoryValue(p.category)===id); if(used)return alert('That category is currently used by a product or auction. Reassign those items before deleting it.'); siteCategories=siteCategories.filter(c=>c.id!==id); currentFilter='all'; saveData(); populateAdminCatalogSelects(); populateShopFilters(); renderCatalogManagers(); renderProducts(); }
+        function removeSiteBrand(name){ const used=products.concat(bids).some(p=>String(p.brand||'').toLowerCase()===String(name||'').toLowerCase()); if(used)return alert('That brand is currently used by a product or auction. Reassign those items before deleting it.'); siteBrands=siteBrands.filter(b=>b!==name); if(currentBrandFilter===name)currentBrandFilter='all'; saveData(); populateAdminCatalogSelects(); populateShopFilters(); renderCatalogManagers(); renderProducts(); }
+        function renderAdminAllProducts(){
+            const box=document.getElementById('admin-all-products-container'); if(!box)return;
+            const q=(document.getElementById('admin-all-products-search')?.value||'').trim().toLowerCase();
+            const rows=[];
+            products.forEach(p=>rows.push({type:'product',item:p}));
+            bids.forEach(b=>rows.push({type:'bid',item:b}));
+            const filtered=rows.filter(r=>{const p=r.item; return !q || [p.title,p.brand,getCategoryName(p.category),r.type==='bid'?'bidding':'shop'].join(' ').toLowerCase().includes(q);});
+            if(!filtered.length){box.innerHTML='<div style="color:var(--text-muted);padding:25px;text-align:center;">No matching posted products.</div>';return;}
+            box.innerHTML=filtered.map(r=>{const p=r.item; const isBid=r.type==='bid'; const status=isBid?(p.isSoldOut?'SOLD':'LIVE'):(p.isSoldOut?'SOLD OUT':'AVAILABLE'); return `<div class="inventory-row"><img src="${safeText(p.img)}" alt="${safeText(p.title)}"><div class="inventory-meta"><strong>${safeText(p.title)}</strong><small>${isBid?'Bidding':'Shop'} · ${safeText(getCategoryName(p.category))}${p.brand?` · <span class="tag-brand">${safeText(p.brand)}</span>`:''} · ${isBid?'₱'+Number(p.highestBid||p.startPrice||0).toLocaleString():'₱'+Number(p.price||0).toLocaleString()} · ${status}</small></div><div class="inventory-actions"><button class="btn btn-sm btn-dark" onclick="openAdminEditItem('${isBid?'bid':'product'}',${Number(p.id)})"><i class="fas fa-edit"></i> Edit</button><button class="btn btn-sm btn-danger" onclick="${isBid?'deleteBid':'deleteProduct'}(${Number(p.id)})"><i class="fas fa-trash"></i></button></div></div>`;}).join('');
+        }
+
         function filterCategory(cat, btn) {
-            currentFilter = cat;
+            currentFilter = normalizeCategoryValue(cat) || 'all';
             document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
             if(btn) btn.classList.add('active');
+            const select=document.getElementById('shop-category-filter'); if(select)select.value=currentFilter;
             renderProducts();
         }
 
@@ -2196,52 +2330,24 @@
                 if (!img || media.length <= 1) return;
                 let index = 0;
                 const timer = setInterval(() => {
-                    frame.classList.remove('slide-next');
-                    void frame.offsetWidth;
-                    index = (index + 1) % media.length;
-                    img.src = media[index];
-                    const count = frame.querySelector('.product-media-count');
-                    if (count) count.textContent = `${index + 1}/${media.length}`;
-                    frame.classList.add('slide-next');
-                    setTimeout(() => frame.classList.remove('slide-next'), 700);
-                }, 15000);
+                    frame.classList.remove('slide-next'); void frame.offsetWidth; index=(index+1)%media.length; img.src=media[index];
+                    const count=frame.querySelector('.product-media-count'); if(count)count.textContent=`${index+1}/${media.length}`;
+                    frame.classList.add('slide-next'); setTimeout(()=>frame.classList.remove('slide-next'),700);
+                },15000);
                 productMediaTimers.set(id,timer);
             });
         }
 
         function renderProducts() {
-            const grid = document.getElementById('product-grid');
-            clearProductMediaTimers();
-            grid.innerHTML = '';
-            const filtered = currentFilter === 'all' ? products : products.filter(p => p.category === currentFilter);
-            if (filtered.length === 0) {
-                grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;color:var(--text-muted);padding:30px;">No items in this category yet.</div>`;
-                return;
-            }
-            filtered.forEach(item => {
-                const media = getProductMedia(item);
-                const soldOutOverlay = item.isSoldOut ? `<div class="sold-out-overlay"><span class="sold-out-badge">SOLD OUT</span></div>` : '';
-                const count = media.length > 1 ? `<span class="product-media-count">1/${media.length}</span>` : '';
-                grid.innerHTML += `
-                    <div class="product-card" onclick="openProductDetail(${Number(item.id)})">
-                        <div class="product-img-wrapper">
-                            <div class="product-media-frame" data-media-slideshow="product" data-product-id="${Number(item.id)}">
-                                ${soldOutOverlay}
-                                <img src="${safeText(media[0] || item.img)}" alt="${safeText(item.title)}">
-                                ${count}
-                            </div>
-                        </div>
-                        <div class="product-info">
-                            <span class="product-category-tag">${safeText(item.category.replace('-', ' '))}</span>
-                            <h3 class="product-title">${safeText(item.title)}</h3>
-                            <div class="product-price">₱${Number(item.price).toLocaleString()}</div>
-                            <div class="product-card-tags">
-                                <span class="mini-badge">Size: ${safeText(item.size || 'OS')}</span>
-                                <span class="mini-badge">${safeText(item.condition || 'Good')}</span>
-                                ${media.length > 1 ? `<span class="mini-badge">${media.length} photos</span>` : ''}
-                            </div>
-                        </div>
-                    </div>`;
+            const grid=document.getElementById('product-grid'); clearProductMediaTimers(); populateShopFilters(); grid.innerHTML='';
+            const filtered=products.filter(productMatchesFilters);
+            const summary=document.getElementById('shop-filter-summary'); if(summary) summary.textContent=`Showing ${filtered.length} of ${products.length} posted shop product${products.length===1?'':'s'}.`;
+            if(!filtered.length){ grid.innerHTML='<div style="grid-column:1/-1;text-align:center;color:var(--text-muted);padding:30px;">No products match your search or filters.</div>'; return; }
+            filtered.forEach(item=>{
+                const media=getProductMedia(item);
+                const sold=item.isSoldOut?`<div class="sold-out-overlay"><span class="sold-out-badge">SOLD OUT</span></div>`:'';
+                const count=media.length>1?`<span class="product-media-count">1/${media.length}</span>`:'';
+                grid.innerHTML += `<div class="product-card" onclick="openProductDetail(${Number(item.id)})"><div class="product-img-wrapper"><div class="product-media-frame" data-media-slideshow="product" data-product-id="${Number(item.id)}">${sold}<img src="${safeText(media[0]||item.img)}" alt="${safeText(item.title)}">${count}</div></div><div class="product-info"><span class="product-category-tag">${safeText(getCategoryName(item.category))}${item.brand?` · <span class="tag-brand">${safeText(item.brand)}</span>`:''}</span><h3 class="product-title">${safeText(item.title)}</h3><div class="product-price">₱${Number(item.price).toLocaleString()}</div><div class="product-card-tags"><span class="mini-badge">Size: ${safeText(item.size||'OS')}</span><span class="mini-badge">${safeText(item.condition||'Good')}</span>${media.length>1?`<span class="mini-badge">${media.length} photos</span>`:''}</div></div></div>`;
             });
             startProductThumbnailSlideshow();
         }
@@ -2282,7 +2388,7 @@
             renderDetailThumbsGeneric(prod, media);
             showDetailMedia(media[0]);
             document.getElementById('detail-title').textContent=prod.title;
-            document.getElementById('detail-category').textContent=prod.category.replace('-',' ');
+            document.getElementById('detail-category').textContent=getCategoryName(prod.category) + (prod.brand ? ` · ${prod.brand}` : '');
             document.getElementById('detail-price').textContent=`₱${Number(prod.price).toLocaleString()}`;
             document.getElementById('detail-size').textContent=prod.size||'OS';
             document.getElementById('detail-condition').textContent=prod.condition||'Vintage';
@@ -2385,7 +2491,7 @@
             renderDetailThumbsGeneric(item, media);
             showDetailMedia(media[0]);
             document.getElementById('detail-title').textContent=item.title;
-            document.getElementById('detail-category').textContent=(item.category||'').replace('-',' ');
+            document.getElementById('detail-category').textContent=getCategoryName(item.category) + (item.brand ? ` · ${item.brand}` : '');
             document.getElementById('detail-price').textContent=`Highest ₱${Number(item.highestBid || item.startPrice || 0).toLocaleString()}`;
             document.getElementById('detail-size').textContent=item.size||'OS';
             document.getElementById('detail-condition').textContent=item.condition||'Vintage';
@@ -2465,7 +2571,7 @@
             products.forEach(p => {
                 const soldBtnText = p.isSoldOut ? 'Mark Available' : 'Mark Sold Out';
                 const soldBtnClass = p.isSoldOut ? 'btn-gold' : 'btn-dark';
-                container.innerHTML += `<div class="manage-prod-item"><img src="${safeText(p.img)}" alt="${safeText(p.title)}"><div class="manage-prod-info"><strong>${safeText(p.title)} ${p.isSoldOut ? '<span style="color:var(--danger)">(SOLD OUT)</span>' : ''}</strong><span>₱${Number(p.price).toLocaleString()} | ${safeText(p.category)} | Size: ${safeText(p.size || 'OS')}</span></div><div class="manage-prod-actions"><button class="btn btn-sm ${soldBtnClass}" onclick="toggleSoldOutStatus(${Number(p.id)})">${soldBtnText}</button><button class="btn btn-sm btn-dark" onclick="openAdminEditItem('product', ${Number(p.id)})"><i class="fas fa-edit"></i> Edit</button><button class="btn btn-sm btn-danger" onclick="deleteProduct(${Number(p.id)})"><i class="fas fa-trash"></i></button></div></div>`;
+                container.innerHTML += `<div class="manage-prod-item"><img src="${safeText(p.img)}" alt="${safeText(p.title)}"><div class="manage-prod-info"><strong>${safeText(p.title)} ${p.isSoldOut ? '<span style="color:var(--danger)">(SOLD OUT)</span>' : ''}</strong><span>₱${Number(p.price).toLocaleString()} | ${safeText(getCategoryName(p.category))}${p.brand ? ` | Brand: ${safeText(p.brand)}` : ''} | Size: ${safeText(p.size || 'OS')}</span></div><div class="manage-prod-actions"><button class="btn btn-sm ${soldBtnClass}" onclick="toggleSoldOutStatus(${Number(p.id)})">${soldBtnText}</button><button class="btn btn-sm btn-dark" onclick="openAdminEditItem('product', ${Number(p.id)})"><i class="fas fa-edit"></i> Edit</button><button class="btn btn-sm btn-danger" onclick="deleteProduct(${Number(p.id)})"><i class="fas fa-trash"></i></button></div></div>`;
             });
         }
 
@@ -2473,7 +2579,7 @@
             const container = document.getElementById('admin-bid-list-container');
             container.innerHTML = bids.length ? '' : `<p style="color:var(--text-muted);">No bidding products yet.</p>`;
             bids.forEach(b => {
-                container.innerHTML += `<div class="manage-prod-item"><img src="${safeText(b.img)}" alt="${safeText(b.title)}"><div class="manage-prod-info"><strong>${safeText(b.title)} ${b.isSoldOut ? '<span style="color:var(--danger)">(SOLD)</span>' : ''}</strong><span>Start ₱${Number(b.startPrice || 0).toLocaleString()} | Highest ₱${Number(b.highestBid || 0).toLocaleString()} | ${safeText(b.category)}</span></div><div class="manage-prod-actions"><button class="btn btn-sm ${b.isSoldOut ? 'btn-gold' : 'btn-dark'}" onclick="toggleBidSoldStatus(${Number(b.id)})">${b.isSoldOut ? 'Available' : 'Mark Sold'}</button><button class="btn btn-sm btn-dark" onclick="openAdminEditItem('bid', ${Number(b.id)})"><i class="fas fa-edit"></i> Edit</button><button class="btn btn-sm btn-danger" onclick="deleteBid(${Number(b.id)})"><i class="fas fa-trash"></i></button></div></div>`;
+                container.innerHTML += `<div class="manage-prod-item"><img src="${safeText(b.img)}" alt="${safeText(b.title)}"><div class="manage-prod-info"><strong>${safeText(b.title)} ${b.isSoldOut ? '<span style="color:var(--danger)">(SOLD)</span>' : ''}</strong><span>Start ₱${Number(b.startPrice || 0).toLocaleString()} | Highest ₱${Number(b.highestBid || 0).toLocaleString()} | ${safeText(getCategoryName(b.category))}${b.brand ? ` | Brand: ${safeText(b.brand)}` : ''}</span></div><div class="manage-prod-actions"><button class="btn btn-sm ${b.isSoldOut ? 'btn-gold' : 'btn-dark'}" onclick="toggleBidSoldStatus(${Number(b.id)})">${b.isSoldOut ? 'Available' : 'Mark Sold'}</button><button class="btn btn-sm btn-dark" onclick="openAdminEditItem('bid', ${Number(b.id)})"><i class="fas fa-edit"></i> Edit</button><button class="btn btn-sm btn-danger" onclick="deleteBid(${Number(b.id)})"><i class="fas fa-trash"></i></button></div></div>`;
             });
         }
 
@@ -2526,7 +2632,9 @@
             document.getElementById('edit-prod-type').value=type;
             document.getElementById('edit-prod-id').value=item.id;
             document.getElementById('edit-prod-title').value=item.title||'';
-            document.getElementById('edit-prod-category').value=item.category||'vintage-shirts';
+            populateAdminCatalogSelects();
+            document.getElementById('edit-prod-category').value=normalizeCategoryValue(item.category)||'';
+            document.getElementById('edit-prod-brand').value=item.brand||'';
             document.getElementById('edit-prod-price').value=type==='product'?item.price:item.highestBid;
             document.getElementById('edit-prod-size').value=item.size||'';
             document.getElementById('edit-prod-condition').value=item.condition||'';
@@ -2553,7 +2661,8 @@
                     const index=products.findIndex(p=>Number(p.id)===id);
                     if(index!==-1){
                         products[index].title=document.getElementById('edit-prod-title').value.trim();
-                        products[index].category=document.getElementById('edit-prod-category').value;
+                        products[index].category=normalizeCategoryValue(document.getElementById('edit-prod-category').value);
+                        products[index].brand=document.getElementById('edit-prod-brand').value.trim();
                         products[index].price=Number(document.getElementById('edit-prod-price').value);
                         products[index].size=document.getElementById('edit-prod-size').value.trim();
                         products[index].condition=document.getElementById('edit-prod-condition').value.trim();
@@ -2567,7 +2676,8 @@
                     const index=bids.findIndex(b=>Number(b.id)===id);
                     if(index!==-1){
                         bids[index].title=document.getElementById('edit-prod-title').value.trim();
-                        bids[index].category=document.getElementById('edit-prod-category').value;
+                        bids[index].category=normalizeCategoryValue(document.getElementById('edit-prod-category').value);
+                        bids[index].brand=document.getElementById('edit-prod-brand').value.trim();
                         bids[index].highestBid=Number(document.getElementById('edit-prod-price').value);
                         bids[index].size=document.getElementById('edit-prod-size').value.trim();
                         bids[index].condition=document.getElementById('edit-prod-condition').value.trim();
@@ -2587,7 +2697,7 @@
         });
 
         function switchAdminSubtab(tab) {
-            const ids = ['add','manage','bid','edit','ann','rec','sec','users','connect','logo'];
+            const ids = ['add','manage','bid','edit','ann','rec','sec','users','connect','logo','catalog','allproducts'];
             ids.forEach(t => {
                 const btn = document.getElementById(`atab-${t}`);
                 if (btn) btn.classList.toggle('active', t === tab);
@@ -2595,10 +2705,10 @@
             document.querySelectorAll('.admin-tab-content').forEach(el => el.style.display = 'none');
             const targetMap = {
                 add: 'admin-product-form', manage: 'admin-manage-products', bid: 'admin-bid-panel', edit: 'admin-edit-product-form',
-                ann: 'admin-announcement-form', rec: 'admin-receipt-form', sec: 'admin-creds-form', users: 'admin-user-logs', connect: 'admin-connect-form', logo: 'admin-logo-form'
+                ann: 'admin-announcement-form', rec: 'admin-receipt-form', sec: 'admin-creds-form', users: 'admin-user-logs', connect: 'admin-connect-form', logo: 'admin-logo-form', catalog: 'admin-catalog-form', allproducts: 'admin-all-products'
             };
             const target = document.getElementById(targetMap[tab]);
-            if (target) target.style.display = ['bid','add','manage','edit','ann','rec','sec','users','connect','logo'].includes(tab) ? 'block' : 'none';
+            if (target) target.style.display = ['bid','add','manage','edit','ann','rec','sec','users','connect','logo','catalog','allproducts'].includes(tab) ? 'block' : 'none';
             if (tab === 'manage') renderAdminProductManagement();
             if (tab === 'bid') { populateAdminSelectors(); renderAdminBidManagement(); }
             if (tab === 'ann') populateAnnouncementForm();
@@ -2606,6 +2716,8 @@
             if (tab === 'users') renderAdminUsersAndLogs();
             if (tab === 'connect') populateConnectForm();
             if (tab === 'logo') populateLogoForm();
+            if (tab === 'catalog') { populateAdminCatalogSelects(); renderCatalogManagers(); }
+            if (tab === 'allproducts') renderAdminAllProducts();
         }
 
         // Product image source toggle
@@ -2656,7 +2768,7 @@
                 const subImages=[...extraUrls,...extraFiles];
                 const newProd={
                     id:Date.now(), title:document.getElementById('prod-title').value.trim(), category:document.getElementById('prod-category').value,
-                    price:Number(document.getElementById('prod-price').value), size:document.getElementById('prod-size').value.trim(),
+                    price:Number(document.getElementById('prod-price').value), brand:document.getElementById('prod-brand').value.trim(), size:document.getElementById('prod-size').value.trim(),
                     condition:document.getElementById('prod-condition').value.trim(), description:document.getElementById('prod-desc').value.trim(),
                     img:mainImg, subImages, isSoldOut:false
                 };
@@ -2677,7 +2789,7 @@
                 const videoFiles=await readVideoFilesAsDataUrls(document.getElementById('bid-video-files').files);
                 if(!mainImg) return alert('Please enter a main image URL.');
                 const newBid={
-                    id:Date.now(), title:document.getElementById('bid-title').value.trim(), category:document.getElementById('bid-category').value,
+                    id:Date.now(), title:document.getElementById('bid-title').value.trim(), category:normalizeCategoryValue(document.getElementById('bid-category').value), brand:document.getElementById('bid-brand').value.trim(),
                     price:startPrice, startPrice, highestBid:startPrice, highestBidderTag:'@Guest', size:document.getElementById('bid-size').value.trim(),
                     condition:document.getElementById('bid-condition').value.trim(), description:document.getElementById('bid-desc').value.trim(),
                     img:mainImg, subImages:[...extraImages,...imageFiles], subVideos:[...videoUrls,...videoFiles], isSoldOut:false
@@ -2879,7 +2991,7 @@
         // Crown Admin
         function triggerAdminModal() {
             if (isAdmin) {
-                populateAdminSelectors(); renderAdminProductManagement(); renderAdminBidManagement(); populateAnnouncementForm(); renderAdminUsersAndLogs(); populateConnectForm(); populateLogoForm(); openModal('admin-dashboard-modal');
+                populateAdminSelectors(); renderAdminProductManagement(); renderAdminBidManagement(); populateAnnouncementForm(); renderAdminUsersAndLogs(); populateConnectForm(); populateLogoForm(); populateAdminCatalogSelects(); renderCatalogManagers(); openModal('admin-dashboard-modal');
             } else openModal('admin-login-modal');
         }
 
@@ -2889,7 +3001,7 @@
             const p = document.getElementById('admin-pass-input').value;
             if (u === adminCreds.username && p === adminCreds.password) {
                 isAdmin = true; document.body.classList.add('admin-mode'); closeModal('admin-login-modal');
-                populateAdminSelectors(); renderAdminProductManagement(); renderAdminBidManagement(); populateAnnouncementForm(); renderAdminUsersAndLogs(); populateConnectForm(); populateLogoForm(); openModal('admin-dashboard-modal'); renderBids();
+                populateAdminSelectors(); renderAdminProductManagement(); renderAdminBidManagement(); populateAnnouncementForm(); renderAdminUsersAndLogs(); populateConnectForm(); populateLogoForm(); populateAdminCatalogSelects(); renderCatalogManagers(); openModal('admin-dashboard-modal'); renderBids();
             } else alert('Incorrect Admin Credentials.');
         });
 
@@ -3071,6 +3183,18 @@
         function closeModal(id) {
             document.getElementById(id).classList.remove('active');
         }
+
+        // Shop search / filter events
+        document.getElementById('shop-search')?.addEventListener('input', e => { currentSearch = e.target.value.trim(); renderProducts(); });
+        document.getElementById('shop-category-filter')?.addEventListener('change', e => { currentFilter = e.target.value || 'all'; renderProducts(); });
+        document.getElementById('shop-brand-filter')?.addEventListener('change', e => { currentBrandFilter = e.target.value || 'all'; renderProducts(); });
+        document.getElementById('admin-all-products-search')?.addEventListener('input', renderAdminAllProducts);
+        document.getElementById('new-category-name')?.addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); addSiteCategory(); } });
+        document.getElementById('new-brand-name')?.addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); addSiteBrand(); } });
+
+        // Initialize dynamic catalog controls
+        populateAdminCatalogSelects();
+        populateShopFilters();
 
         // Initialize App
         isAdmin = false;
