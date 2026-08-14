@@ -1444,6 +1444,11 @@
         <div class="modal-box" style="max-width: 860px; max-height: 92vh; overflow-y: auto;">
             <span class="close-modal" onclick="closeModal('admin-dashboard-modal')">&times;</span>
             <h3 style="color: var(--gold);"><i class="fas fa-crown"></i> Owner Control Panel</h3>
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:10px 0 14px;padding:10px;background:#151515;border:1px solid #2a2a2a;border-radius:10px;">
+                <button type="button" class="btn btn-gold btn-sm" onclick="publishStoreNow()"><i class="fas fa-cloud-arrow-up"></i> Publish Changes</button>
+                <button type="button" class="btn btn-dark btn-sm" onclick="testSharedStore()"><i class="fas fa-plug"></i> Test Shared Store</button>
+                <span id="cloud-sync-status" class="status-pill cloud-off">CONNECTING...</span>
+            </div>
             
             <!-- Sub-navigation tabs inside Admin Panel -->
             <div class="admin-subtabs">
@@ -2185,21 +2190,36 @@
             };
         }
 
+        async function supabaseRest(path, options = {}) {
+            const res = await fetch(SUPABASE_URL + '/rest/v1/' + path, {
+                ...options,
+                headers: {
+                    apikey: SUPABASE_PUBLISHABLE_KEY,
+                    Authorization: 'Bearer ' + SUPABASE_PUBLISHABLE_KEY,
+                    'Content-Type': 'application/json',
+                    ...(options.headers || {})
+                }
+            });
+            const text = await res.text();
+            let data = null;
+            try { data = text ? JSON.parse(text) : null; } catch (_) {}
+            if (!res.ok) {
+                const msg = data?.message || data?.error_description || data?.hint || text || ('HTTP ' + res.status);
+                throw new Error(msg);
+            }
+            return data;
+        }
+
         async function loadPublicStoreState() {
-            if (!sbClient) return false;
-            const { data, error } = await cloudTable('site_settings')
-                .select('setting_value')
-                .eq('setting_key', 'store_state')
-                .maybeSingle();
-            if (error) throw error;
-            const state = data?.setting_value;
+            const rows = await supabaseRest('site_settings?select=setting_value&setting_key=eq.store_state&limit=1', { method:'GET' });
+            const state = Array.isArray(rows) ? rows[0]?.setting_value : null;
             if (!state || typeof state !== 'object') return false;
             products = Array.isArray(state.products) ? state.products : products;
             bids = Array.isArray(state.bids) ? state.bids : bids;
             receipts = Array.isArray(state.receipts) ? state.receipts : receipts;
             siteCategories = Array.isArray(state.categories) ? state.categories : siteCategories;
             siteBrands = Array.isArray(state.brands) ? state.brands : siteBrands;
-            announcement = state.announcement || announcement;
+            announcement = state.announcement ?? announcement;
             connectLinks = state.connectLinks || connectLinks;
             siteLogo = state.siteLogo || siteLogo;
             normalizeCatalogData();
@@ -2207,22 +2227,51 @@
         }
 
         async function savePublicStoreState() {
-            if (!sbClient || !isAdmin) return;
             const payload = { setting_key: 'store_state', setting_value: getPublicStoreState(), updated_at: new Date().toISOString() };
-            const { error } = await cloudTable('site_settings').upsert(payload, { onConflict: 'setting_key' });
-            if (error) throw error;
+            await supabaseRest('site_settings?on_conflict=setting_key', {
+                method:'POST',
+                headers:{'Prefer':'resolution=merge-duplicates,return=representation'},
+                body: JSON.stringify([payload])
+            });
+            cloudReady = true;
+            renderCloudStatus();
         }
 
-        // Single owner account for this Patch Archive installation.
-        // This removes the fragile dependency on the profiles table for determining owner UI access.
-        const OWNER_USER_ID = '7f5a7303-f0e6-4545-99ef-6372eb8e447a';
+        async function publishStoreNow(showAlert = true) {
+            if (!isAdmin) return showAlert ? alert('Owner login required.') : false;
+            try {
+                const status = document.getElementById('cloud-sync-status');
+                if (status) status.textContent='PUBLISHING...';
+                await savePublicStoreState();
+                cloudInitialLoadDone = true;
+                if (status) { status.textContent='SYNC ON'; status.className='status-pill cloud-ok'; }
+                if (showAlert) alert('Published successfully. Shoppers can now see the latest store data.');
+                return true;
+            } catch (err) {
+                console.error('Patch Archive publish failed:', err);
+                cloudReady = false;
+                renderCloudStatus();
+                if (showAlert) alert('Publish failed: ' + (err?.message || err));
+                return false;
+            }
+        }
+
+        async function testSharedStore() {
+            try {
+                const rows = await supabaseRest('site_settings?select=setting_value&setting_key=eq.store_state&limit=1', {method:'GET'});
+                cloudReady = true;
+                renderCloudStatus();
+                const state = Array.isArray(rows) ? rows[0]?.setting_value : null;
+                alert('Shared store connection works.\n\nStore state found: ' + (state ? 'YES' : 'NO') + '\n\nSupabase is reachable from this website.');
+            } catch (err) {
+                cloudReady = false;
+                renderCloudStatus();
+                alert('Shared store connection FAILED:\n\n' + (err?.message || err));
+            }
+        }
 
         // No Supabase authentication is required for the shared-store bridge.
-        // The local owner login controls who gets the admin UI; Supabase is only the public data store here.
-        async function cloudAdminRequired() {
-            if (!sbClient) throw new Error('Supabase is unavailable.');
-            return true;
-        }
+        async function cloudAdminRequired() { return true; }
 
         function mapCloudProduct(row) {
             return {
@@ -2377,17 +2426,16 @@
 
         let cloudSyncTimer=null;
         function scheduleCloudSync() {
-            if (!sbClient || !isAdmin) return;
+            if (!isAdmin) return;
             clearTimeout(cloudSyncTimer);
             cloudSyncTimer=setTimeout(async()=>{
                 if(cloudSyncBusy) return;
                 cloudSyncBusy=true;
-                try { await savePublicStoreState(); window.__patchCloudSyncErrorShown=false; renderCloudStatus(); }
-                catch(err){ console.error('Patch Archive Supabase sync failed:',err); if(!window.__patchCloudSyncErrorShown){window.__patchCloudSyncErrorShown=true; alert('Cloud sync failed: '+(err?.message||err));} }
+                try { await savePublicStoreState(); window.__patchCloudSyncErrorShown=false; }
+                catch(err){ console.error('Patch Archive shared-store sync failed:',err); if(!window.__patchCloudSyncErrorShown){window.__patchCloudSyncErrorShown=true; alert('Cloud sync failed: '+(err?.message||err));} }
                 finally { cloudSyncBusy=false; }
             },150);
         }
-
 
         function renderCloudStatus() {
             const el=document.getElementById('cloud-sync-status'); if(!el) return;
@@ -2397,26 +2445,24 @@
         }
 
         async function initializeSupabaseData() {
-            if (!sbClient) { cloudReady = false; renderCloudStatus(); return; }
             try {
+                cloudReady = false;
+                renderCloudStatus();
+                const loaded = await loadPublicStoreState();
+                if (!loaded && isAdmin) {
+                    await savePublicStoreState();
+                }
                 cloudReady = true;
-                await loadPublicStoreState();
                 cloudInitialLoadDone = true;
-                try {
-                    const cache={patch_products:products,patch_bids:bids,patch_receipts:receipts,patch_announcement:announcement,patch_connect_links:connectLinks,patch_site_logo:siteLogo,patch_site_categories:siteCategories,patch_site_brands:siteBrands};
-                    for (const [key,value] of Object.entries(cache)) writeLocalStorage(key,value);
-                } catch (_) {}
                 renderCloudStatus();
                 renderProducts(); renderGlobalSearchResults(); renderBids(); renderReceipts(); renderAnnouncement(); renderConnect(); applyLogoToSite();
-                if (isAdmin) { renderAdminProductManagement(); renderAdminBidManagement(); renderAdminAllProducts(); renderCatalogManagers(); populateAnnouncementForm(); populateConnectForm(); populateLogoForm(); }
+                if (isAdmin) { renderAdminProductManagement(); renderAdminBidManagement(); renderAdminAllProducts(); renderCatalogManagers(); }
             } catch (err) {
                 console.error('Supabase shared-store load failed:', err);
                 cloudReady = false;
                 renderCloudStatus();
             }
         }
-
-
 
         function saveData() {
             const payloads = {
@@ -3529,6 +3575,7 @@
                 renderAdminAllProducts();
                 openModal('admin-dashboard-modal');
                 renderBids();
+                initializeSupabaseData();
             } else {
                 alert('Incorrect owner username or password.');
             }
