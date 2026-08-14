@@ -924,6 +924,8 @@
         /* Product media gallery + 15-second thumbnail slideshow */
         .product-media-frame { position:relative; width:100%; height:100%; overflow:hidden; }
         .product-media-frame img, .product-media-frame video { width:100%; height:100%; object-fit:cover; display:block; will-change:transform,opacity; transition:opacity .3s ease, transform .3s ease; }
+        .bid-media-holder { width:100%; height:100%; position:absolute; inset:0; }
+        .bid-media-holder img, .bid-media-holder video { width:100%; height:100%; object-fit:cover; display:block; }
         .product-media-frame.slide-next img, .product-media-frame.slide-next video { animation:productSlideNext .65s ease both; }
         @keyframes productSlideNext { from { opacity:.25; transform:translateX(18px) scale(.985); } to { opacity:1; transform:translateX(0) scale(1); } }
         .product-media-count { position:absolute; right:8px; bottom:8px; z-index:4; background:rgba(0,0,0,.72); color:#fff; padding:3px 7px; border-radius:999px; font-size:.68rem; font-weight:800; }
@@ -1382,7 +1384,7 @@
                     <textarea id="edit-prod-desc" rows="3"></textarea>
                 </div>
                 <div style="display:flex; gap:10px;">
-                    <button type="button" class="btn btn-dark" style="width:50%;" onclick="switchAdminSubtab('manage')">Cancel</button>
+                    <button type="button" class="btn btn-dark" style="width:50%;" onclick="switchAdminSubtab(document.getElementById('edit-prod-type').value==='bid'?'bid':'manage')">Cancel</button>
                     <button type="submit" class="btn btn-gold" style="width:50%;">Save Changes</button>
                 </div>
             </form>
@@ -1629,7 +1631,9 @@
         let isAdmin = false;
         let currentFilter = 'all';
         let editingSubImages = [];
+        let editingSubVideos = [];
         const productMediaTimers = new Map();
+        const bidMediaTimers = new Map();
 
         products = products.map(p => ({ ...p, subImages: Array.isArray(p.subImages) ? p.subImages : [] }));
         bids = bids.map(b => ({ ...b, subImages: Array.isArray(b.subImages) ? b.subImages : [] }));
@@ -1850,6 +1854,42 @@
             if(prod.isSoldOut){ soldOverlay.style.display='flex'; actionContainer.innerHTML=`<button class="btn btn-dark" style="width:100%;cursor:not-allowed;" disabled>ITEM SOLD OUT</button>`; }
             else { soldOverlay.style.display='none'; actionContainer.innerHTML=`<a href="https://facebook.com" target="_blank" rel="noopener" class="btn" style="width:100%;"><i class="fab fa-facebook-f"></i> Message Owner to Order</a>`; }
             openModal('product-detail-modal');
+        }
+
+        function clearBidMediaTimers() {
+            bidMediaTimers.forEach(timer => clearInterval(timer));
+            bidMediaTimers.clear();
+        }
+
+        function createMediaElement(entry) {
+            if (!entry || !entry.src) return '<div class="announcement-placeholder"><div>No media</div></div>';
+            if (entry.type === 'video') {
+                return `<video src="${safeText(entry.src)}" muted playsinline preload="metadata"></video>`;
+            }
+            return `<img src="${safeText(entry.src)}" alt="Auction media">`;
+        }
+
+        function startBidThumbnailSlideshow() {
+            clearBidMediaTimers();
+            document.querySelectorAll('[data-media-slideshow="bid"]').forEach(frame => {
+                const id = Number(frame.dataset.bidId);
+                const item = bids.find(b => Number(b.id) === id);
+                const media = item ? getBidMediaEntries(item) : [];
+                const holder = frame.querySelector('.bid-media-holder');
+                const count = frame.querySelector('.product-media-count');
+                if (!holder || media.length <= 1) return;
+                let index = 0;
+                const timer = setInterval(() => {
+                    frame.classList.remove('slide-next');
+                    void frame.offsetWidth;
+                    index = (index + 1) % media.length;
+                    holder.innerHTML = createMediaElement(media[index]);
+                    if (count) count.textContent = `${index + 1}/${media.length}`;
+                    frame.classList.add('slide-next');
+                    setTimeout(() => frame.classList.remove('slide-next'), 700);
+                }, 15000);
+                bidMediaTimers.set(id, timer);
+            });
         }
 
         function renderBids() {
@@ -2381,10 +2421,12 @@
             e.preventDefault();
             const selectedId = Number(document.getElementById('bid-item-select').value);
             const bidIndex = bids.findIndex(b => Number(b.id) === selectedId);
-            if (bidIndex === -1) return;
-            bids[bidIndex].highestBid = Number(document.getElementById('bid-amount-input').value);
-            bids[bidIndex].highestBidderTag = document.getElementById('bid-user-select').value;
-            saveData(); renderBids(); renderAdminBidManagement(); alert('Highest bid updated!');
+            if (bidIndex === -1) return alert('Please select an auction item.');
+            const amount = Number(document.getElementById('bid-amount-input').value);
+            if (!Number.isFinite(amount) || amount < 0) return alert('Please enter a valid bid amount.');
+            bids[bidIndex].highestBid = amount;
+            bids[bidIndex].highestBidderTag = document.getElementById('bid-user-select').value || '@Guest';
+            saveData(); renderBids(); renderAdminBidManagement(); loadSelectedBidData(); alert('Highest bid updated!');
         });
 
         // Announcement helpers
