@@ -2135,6 +2135,25 @@
             }
         }
 
+        // Category helpers used throughout product/bid rendering and cloud sync.
+        const LEGACY_CATEGORY_MAP = {
+            'vintage-shirts': 't-shirt',
+            'jorts': 'shorts'
+        };
+        const LEGACY_CATEGORY_LABELS = {
+            'vintage-shirts': 'T Shirt',
+            'jorts': 'Shorts'
+        };
+        function normalizeCategoryValue(value) {
+            const v = String(value || '').trim().toLowerCase();
+            return LEGACY_CATEGORY_MAP[v] || v;
+        }
+        function getCategoryName(value) {
+            const v = normalizeCategoryValue(value);
+            const item = siteCategories.find(c => String(c.id) === v);
+            return item ? item.name : (LEGACY_CATEGORY_LABELS[v] || v || 'Uncategorized');
+        }
+
         function normalizeCatalogData() {
             siteCategories = siteCategories.filter(c=>c && c.id && c.name).map(c=>({id:String(c.id),name:String(c.name).trim()}));
             const seenCats=new Set(); siteCategories=siteCategories.filter(c=>{if(seenCats.has(c.id))return false;seenCats.add(c.id);return true;});
