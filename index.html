@@ -488,6 +488,82 @@
             display: block;
         }
 
+        .receipt-media {
+            aspect-ratio: 4/3;
+            border-radius: 6px;
+            overflow: hidden;
+            margin-bottom: 10px;
+            background: #000;
+            border: 1px solid #222;
+        }
+
+        .receipt-media img,
+        .receipt-media video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .receipt-details {
+            color: #c7c7c7;
+            font-size: .82rem;
+            white-space: pre-line;
+            line-height: 1.5;
+            margin-top: 6px;
+        }
+
+        .admin-receipt-list {
+            display: grid;
+            gap: 10px;
+            margin-top: 14px;
+        }
+
+        .admin-receipt-item {
+            display: grid;
+            grid-template-columns: 86px minmax(0,1fr) auto;
+            gap: 12px;
+            align-items: center;
+            background: #181818;
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            padding: 10px;
+        }
+
+        .admin-receipt-preview {
+            width: 86px;
+            height: 68px;
+            border-radius: 6px;
+            overflow: hidden;
+            background: #000;
+            border: 1px solid #2d2d2d;
+        }
+
+        .admin-receipt-preview img,
+        .admin-receipt-preview video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .admin-receipt-actions {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+
+        @media (max-width:600px) {
+            .admin-receipt-item {
+                grid-template-columns: 70px minmax(0,1fr);
+            }
+            .admin-receipt-actions {
+                grid-column: 1 / -1;
+                justify-content: flex-start;
+            }
+        }
+
         /* Admin Manage Products List Item */
         .manage-prod-item {
             display: flex;
@@ -1623,21 +1699,60 @@
             </form>
 
             <!-- Tab 6: Receipts -->
-            <form id="admin-receipt-form" class="admin-tab-content" style="display:none;">
-                <div class="form-group">
-                    <label>Buyer Reference</label>
-                    <input type="text" id="receipt-buyer" placeholder="e.g. Juan D." required>
+            <div id="admin-receipt-form" class="admin-tab-content" style="display:none;">
+                <form id="admin-receipt-entry-form">
+                    <div class="form-grid-2">
+                        <div class="form-group">
+                            <label>Buyer Reference</label>
+                            <input type="text" id="receipt-buyer" placeholder="e.g. Juan D." required>
+                        </div>
+                        <div class="form-group">
+                            <label>Sale Date / Label</label>
+                            <input type="text" id="receipt-date" placeholder="e.g. August 2026 / Verified Sale" value="Verified Sale" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Item Purchased</label>
+                        <input type="text" id="receipt-item" placeholder="e.g. Vintage Carhartt Jacket" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Receipt / Proof Details</label>
+                        <textarea id="receipt-details" rows="3" placeholder="Optional details: size, condition, shipping proof, buyer note, tracking information, etc."></textarea>
+                    </div>
+                    <div class="form-grid-2">
+                        <div class="form-group">
+                            <label>Media Type</label>
+                            <select id="receipt-media-type">
+                                <option value="image">Image</option>
+                                <option value="video">Video</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Media Source</label>
+                            <select id="receipt-media-source" onchange="toggleReceiptMediaInputs()">
+                                <option value="url">Paste URL</option>
+                                <option value="file">Upload File</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group" id="receipt-media-url-group">
+                        <label>Media URL</label>
+                        <input type="url" id="receipt-media-url" placeholder="https://..." required>
+                    </div>
+                    <div class="form-group" id="receipt-media-file-group" style="display:none;">
+                        <label>Upload Image / Video</label>
+                        <input type="file" id="receipt-media-file" accept="image/*,video/*">
+                        <div class="tiny-note">For browser storage, keep uploaded files reasonably small.</div>
+                    </div>
+                    <div id="receipt-media-preview" class="media-preview-box"></div>
+                    <button type="submit" class="btn" style="width:100%;">Publish Receipt Proof</button>
+                </form>
+
+                <div class="admin-section-divider">
+                    <strong style="color:var(--white);">Manage Published Receipts</strong>
                 </div>
-                <div class="form-group">
-                    <label>Item Purchased</label>
-                    <input type="text" id="receipt-item" placeholder="e.g. Vintage Carhartt Jacket" required>
-                </div>
-                <div class="form-group">
-                    <label>Receipt Photo URL</label>
-                    <input type="text" id="receipt-img" required>
-                </div>
-                <button type="submit" class="btn" style="width: 100%;">Publish Receipt Proof</button>
-            </form>
+                <div id="admin-receipt-list-container" class="admin-receipt-list"></div>
+            </div>
 
             <!-- Tab 7: Security -->
             <form id="admin-creds-form" class="admin-tab-content" style="display:none;">
@@ -1809,6 +1924,7 @@
         let bids = JSON.parse(localStorage.getItem('patch_bids')) || defaultBids;
         bids = bids.map(b => ({ ...b, subImages: Array.isArray(b.subImages) ? b.subImages : [], subVideos: Array.isArray(b.subVideos) ? b.subVideos : [] }));
         let receipts = JSON.parse(localStorage.getItem('patch_receipts')) || defaultReceipts;
+        receipts = receipts.map(r => ({ ...r, mediaType: r.mediaType || 'image', mediaSrc: r.mediaSrc || r.img || '', details: r.details || '' }));
         let announcement = JSON.parse(localStorage.getItem('patch_announcement')) || null;
         let adminCreds = JSON.parse(localStorage.getItem('patch_admin_creds')) || { username: "admin", password: "123" };
         let currentUser = JSON.parse(localStorage.getItem('patch_current_user')) || null;
@@ -2281,12 +2397,66 @@
             openModal('product-detail-modal');
         }
 
+        function getReceiptMediaMarkup(r, admin=false) {
+            const src = r.mediaSrc || r.img || '';
+            if (!src) {
+                return `<div style="display:grid;place-items:center;height:100%;color:#666;font-size:.78rem;">No media</div>`;
+            }
+            if ((r.mediaType || 'image') === 'video') {
+                return `<video src="${safeText(src)}" controls playsinline preload="metadata"></video>`;
+            }
+            return `<img src="${safeText(src)}" alt="Receipt Proof" loading="lazy">`;
+        }
+
         function renderReceipts() {
             const grid = document.getElementById('receipts-grid');
             grid.innerHTML = '';
+            if (!receipts.length) {
+                grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;color:var(--text-muted);padding:30px;">No receipts published yet.</div>`;
+                return;
+            }
             receipts.forEach(r => {
-                grid.innerHTML += `<div class="receipt-card"><div class="receipt-img"><img src="${safeText(r.img)}" alt="Receipt Proof"></div><div class="receipt-meta"><strong>Item: ${safeText(r.item)}</strong>Buyer: ${safeText(r.buyer)} | ${safeText(r.date)}</div></div>`;
+                grid.innerHTML += `<div class="receipt-card">
+                    <div class="receipt-media">${getReceiptMediaMarkup(r)}</div>
+                    <div class="receipt-meta">
+                        <strong>Item: ${safeText(r.item)}</strong>
+                        Buyer: ${safeText(r.buyer)} | ${safeText(r.date || 'Verified Sale')}
+                        ${r.details ? `<div class="receipt-details">${safeText(r.details)}</div>` : ''}
+                    </div>
+                </div>`;
             });
+        }
+
+        function renderAdminReceiptManagement() {
+            const container = document.getElementById('admin-receipt-list-container');
+            if (!container) return;
+            if (!receipts.length) {
+                container.innerHTML = `<p style="color:var(--text-muted);">No receipts published yet.</p>`;
+                return;
+            }
+            container.innerHTML = receipts.map(r => `
+                <div class="admin-receipt-item">
+                    <div class="admin-receipt-preview">${getReceiptMediaMarkup(r, true)}</div>
+                    <div>
+                        <strong style="color:var(--white);display:block;">${safeText(r.item)}</strong>
+                        <span style="color:var(--text-muted);font-size:.78rem;">Buyer: ${safeText(r.buyer)} · ${safeText(r.date || 'Verified Sale')}</span>
+                        ${r.details ? `<div style="color:#aaa;font-size:.75rem;margin-top:4px;white-space:pre-line;">${safeText(r.details)}</div>` : ''}
+                    </div>
+                    <div class="admin-receipt-actions">
+                        <button class="btn btn-sm btn-danger" onclick="deleteReceipt(${Number(r.id)})"><i class="fas fa-trash"></i> Delete</button>
+                    </div>
+                </div>`).join('');
+        }
+
+        function deleteReceipt(id) {
+            const receipt = receipts.find(r => Number(r.id) === Number(id));
+            if (!receipt) return;
+            if (!confirm(`Delete the receipt proof for \"${receipt.item || 'this item'}\"?`)) return;
+            receipts = receipts.filter(r => Number(r.id) !== Number(id));
+            saveData();
+            renderReceipts();
+            renderAdminReceiptManagement();
+            alert('Receipt deleted.');
         }
 
         function renderAdminProductManagement() {
@@ -2432,6 +2602,7 @@
             if (tab === 'manage') renderAdminProductManagement();
             if (tab === 'bid') { populateAdminSelectors(); renderAdminBidManagement(); }
             if (tab === 'ann') populateAnnouncementForm();
+            if (tab === 'rec') { toggleReceiptMediaInputs(); renderAdminReceiptManagement(); }
             if (tab === 'users') renderAdminUsersAndLogs();
             if (tab === 'connect') populateConnectForm();
             if (tab === 'logo') populateLogoForm();
@@ -2816,11 +2987,74 @@
             announcement = null; saveData(); renderAnnouncement(); populateAnnouncementForm(); alert('Announcement removed from the homepage.');
         }
 
-        document.getElementById('admin-receipt-form').addEventListener('submit', (e) => {
+        function toggleReceiptMediaInputs() {
+            const source = document.getElementById('receipt-media-source').value;
+            const type = document.getElementById('receipt-media-type').value;
+            const urlGroup = document.getElementById('receipt-media-url-group');
+            const fileGroup = document.getElementById('receipt-media-file-group');
+            if (source === 'file') {
+                urlGroup.style.display = 'none';
+                fileGroup.style.display = 'block';
+            } else {
+                urlGroup.style.display = 'block';
+                fileGroup.style.display = 'none';
+            }
+            const fileInput = document.getElementById('receipt-media-file');
+            if (fileInput) fileInput.accept = type === 'video' ? 'video/*' : 'image/*';
+        }
+
+        async function getReceiptMediaSource() {
+            const type = document.getElementById('receipt-media-type').value;
+            const source = document.getElementById('receipt-media-source').value;
+            if (source === 'url') {
+                const url = document.getElementById('receipt-media-url').value.trim();
+                if (!url) throw new Error('Please enter a receipt media URL.');
+                return { mediaType: type, mediaSrc: url };
+            }
+            const file = document.getElementById('receipt-media-file').files?.[0];
+            if (!file) throw new Error('Please select a receipt media file.');
+            const max = type === 'video' ? 12 * 1024 * 1024 : 4 * 1024 * 1024;
+            if (file.size > max) throw new Error(`Please keep the uploaded ${type} under ${type === 'video' ? '12 MB' : '4 MB'}.`);
+            const expectedPrefix = type === 'video' ? 'video/' : 'image/';
+            if (!file.type.startsWith(expectedPrefix)) throw new Error(`Please upload a valid ${type} file.`);
+            const [dataUrl] = await readFilesAsDataUrls([file], max);
+            return { mediaType: type, mediaSrc: dataUrl };
+        }
+
+        document.getElementById('admin-receipt-entry-form').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const newReceipt = { id: Date.now(), buyer: document.getElementById('receipt-buyer').value, item: document.getElementById('receipt-item').value, date: 'Verified Sale', img: document.getElementById('receipt-img').value };
-            receipts.unshift(newReceipt); saveData(); renderReceipts(); alert('Receipt proof added!');
+            try {
+                const media = await getReceiptMediaSource();
+                const newReceipt = {
+                    id: Date.now(),
+                    buyer: document.getElementById('receipt-buyer').value.trim(),
+                    item: document.getElementById('receipt-item').value.trim(),
+                    date: document.getElementById('receipt-date').value.trim() || 'Verified Sale',
+                    details: document.getElementById('receipt-details').value.trim(),
+                    mediaType: media.mediaType,
+                    mediaSrc: media.mediaSrc,
+                    img: media.mediaType === 'image' ? media.mediaSrc : ''
+                };
+                receipts.unshift(newReceipt);
+                saveData();
+                renderReceipts();
+                renderAdminReceiptManagement();
+                e.target.reset();
+                document.getElementById('receipt-date').value = 'Verified Sale';
+                document.getElementById('receipt-media-type').value = 'image';
+                document.getElementById('receipt-media-source').value = 'url';
+                toggleReceiptMediaInputs();
+                document.getElementById('receipt-media-preview').innerHTML = '';
+                document.getElementById('receipt-media-preview').style.display = 'none';
+                alert('Receipt proof published successfully.');
+            } catch (error) {
+                console.error(error);
+                alert(error.message || 'Could not publish the receipt proof.');
+            }
         });
+
+        document.getElementById('receipt-media-type').addEventListener('change', toggleReceiptMediaInputs);
+        document.getElementById('receipt-media-source').addEventListener('change', toggleReceiptMediaInputs);
 
         document.getElementById('admin-creds-form').addEventListener('submit', (e) => {
             e.preventDefault();
@@ -2847,6 +3081,7 @@
         renderProducts();
         renderBids();
         renderReceipts();
+        renderAdminReceiptManagement();
         renderAnnouncement();
         renderConnect();
     </script>
