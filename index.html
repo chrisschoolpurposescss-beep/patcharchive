@@ -1523,9 +1523,22 @@
                         <input type="text" id="edit-prod-condition" required>
                     </div>
                 </div>
-                <div class="form-group">
-                    <label>Image URL</label>
-                    <input type="text" id="edit-prod-img" required>
+                <div class="form-grid-2">
+                    <div class="form-group">
+                        <label>Main Image Source</label>
+                        <select id="edit-prod-img-source" onchange="toggleEditImgSource()">
+                            <option value="url">Paste Image URL</option>
+                            <option value="file">Upload Image File</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="edit-img-url-group">
+                        <label>Image URL <span style="color:var(--text-muted);font-weight:400;">(optional when uploading a file)</span></label>
+                        <input type="url" id="edit-prod-img" placeholder="https://...">
+                    </div>
+                </div>
+                <div class="form-group" id="edit-img-file-group" style="display:none;">
+                    <label>Upload Main Image File</label>
+                    <input type="file" id="edit-prod-img-file" accept="image/*">
                 </div>
                 <div class="media-manager">
                     <div class="media-manager-title"><strong style="color:var(--white);">Manage Gallery + Videos</strong><span class="status-pill">Unlimited*</span></div>
@@ -1610,9 +1623,22 @@
                             <input type="text" id="bid-condition" placeholder="9/10 Excellent" required>
                         </div>
                     </div>
-                    <div class="form-group">
-                        <label>Main Image URL</label>
-                        <input type="url" id="bid-img-url" placeholder="https://..." required>
+                    <div class="form-grid-2">
+                        <div class="form-group">
+                            <label>Main Image Source</label>
+                            <select id="bid-img-source" onchange="toggleBidImgSource()">
+                                <option value="url">Paste Image URL</option>
+                                <option value="file">Upload Image File</option>
+                            </select>
+                        </div>
+                        <div class="form-group" id="bid-img-url-group">
+                            <label>Image URL <span style="color:var(--text-muted);font-weight:400;">(optional when uploading a file)</span></label>
+                            <input type="url" id="bid-img-url" placeholder="https://...">
+                        </div>
+                    </div>
+                    <div class="form-group" id="bid-img-file-group" style="display:none;">
+                        <label>Upload Main Image File</label>
+                        <input type="file" id="bid-img-file" accept="image/*">
                     </div>
                     <div class="media-manager">
                         <div class="media-manager-title"><strong style="color:var(--white);">Bidding Gallery + Videos</strong><span class="status-pill">Unlimited*</span></div>
@@ -2020,6 +2046,23 @@
         const LEGACY_CATEGORY_LABELS = { 'vintage-shirts':'T Shirt', 'jorts':'Shorts' };
         function normalizeCategoryValue(value) { const v=String(value||'').trim(); return LEGACY_CATEGORY_MAP[v] || v; }
         function getCategoryName(value) { const v=normalizeCategoryValue(value); const item=siteCategories.find(c=>c.id===v); return item ? item.name : (LEGACY_CATEGORY_LABELS[v] || v || 'Uncategorized'); }
+        function compactExistingStorage() {
+            try {
+                const raw = localStorage.getItem('patch_bids');
+                if (!raw) return;
+                const parsed = JSON.parse(raw);
+                const compact = compactForStorage(parsed);
+                if (JSON.stringify(compact).length < raw.length * 0.9) {
+                    localStorage.removeItem('patch_bids');
+                    localStorage.setItem('patch_bids', JSON.stringify(compact));
+                }
+            } catch (error) {
+                console.warn('Could not compact existing bid storage:', error);
+            }
+        }
+
+        compactExistingStorage();
+
         function normalizeCatalogData() {
             siteCategories = siteCategories.filter(c=>c && c.id && c.name).map(c=>({id:String(c.id),name:String(c.name).trim()}));
             const seenCats=new Set(); siteCategories=siteCategories.filter(c=>{if(seenCats.has(c.id))return false;seenCats.add(c.id);return true;});
@@ -2036,20 +2079,83 @@
             emailjs.init({ publicKey: EMAILJS_CONFIG.publicKey, limitRate: { id: 'patch-archive', throttle: 1000 } });
         }
 
+        // localStorage is small. Uploaded image/video files are converted to data URLs, which can fill the browser quota quickly.
+        // Keep external URLs, but compact local uploads when storage is full so normal site data can still save.
+        function compactMediaValue(value) {
+            if (typeof value !== 'string') return value;
+            // Local uploads are data URLs. They are the main source of quota exhaustion.
+            return value.startsWith('data:') ? '' : value;
+        }
+
+        function compactForStorage(value) {
+            if (Array.isArray(value)) return value.map(compactForStorage);
+            if (value && typeof value === 'object') {
+                const out = {};
+                for (const [key, val] of Object.entries(value)) {
+                    if (['img','mediaSrc'].includes(key)) {
+                        out[key] = compactMediaValue(val);
+                    } else if (['subImages','subVideos'].includes(key) && Array.isArray(val)) {
+                        out[key] = val.filter(v => typeof v === 'string' && !v.startsWith('data:'));
+                    } else {
+                        out[key] = compactForStorage(val);
+                    }
+                }
+                return out;
+            }
+            return value;
+        }
+
+        function writeLocalStorage(key, value) {
+            localStorage.setItem(key, JSON.stringify(value));
+        }
+
         function saveData() {
-            localStorage.setItem('patch_users', JSON.stringify(users));
-            localStorage.setItem('patch_products', JSON.stringify(products));
-            localStorage.setItem('patch_bids', JSON.stringify(bids));
-            localStorage.setItem('patch_receipts', JSON.stringify(receipts));
-            localStorage.setItem('patch_announcement', JSON.stringify(announcement));
-            localStorage.setItem('patch_admin_creds', JSON.stringify(adminCreds));
-            localStorage.setItem('patch_current_user', JSON.stringify(currentUser));
-            localStorage.setItem('patch_pending_verification', JSON.stringify(pendingVerification));
-            localStorage.setItem('patch_activity_logs', JSON.stringify(activityLogs));
-            localStorage.setItem('patch_connect_links', JSON.stringify(connectLinks));
-            localStorage.setItem('patch_site_logo', JSON.stringify(siteLogo));
-            localStorage.setItem('patch_site_categories', JSON.stringify(siteCategories));
-            localStorage.setItem('patch_site_brands', JSON.stringify(siteBrands));
+            const payloads = {
+                patch_users: users,
+                patch_products: products,
+                patch_bids: bids,
+                patch_receipts: receipts,
+                patch_announcement: announcement,
+                patch_admin_creds: adminCreds,
+                patch_current_user: currentUser,
+                patch_pending_verification: pendingVerification,
+                patch_activity_logs: activityLogs,
+                patch_connect_links: connectLinks,
+                patch_site_logo: siteLogo,
+                patch_site_categories: siteCategories,
+                patch_site_brands: siteBrands
+            };
+
+            try {
+                for (const [key, value] of Object.entries(payloads)) writeLocalStorage(key, value);
+                return true;
+            } catch (error) {
+                const quotaError = error && (error.name === 'QuotaExceededError' || /quota|storage/i.test(String(error.message || '')));
+                if (!quotaError) throw error;
+
+                // Re-save using a compact copy that drops browser-uploaded data URLs but keeps normal URLs.
+                const compactPayloads = compactForStorage(payloads);
+                try {
+                    // Remove the largest potentially-full keys before replacing them with compact versions.
+                    ['patch_bids','patch_products','patch_receipts','patch_announcement','patch_site_logo'].forEach(k => {
+                        try { localStorage.removeItem(k); } catch (_) {}
+                    });
+                    for (const [key, value] of Object.entries(compactPayloads)) writeLocalStorage(key, value);
+                    console.warn('Patch Archive storage was full. Local uploaded media was excluded from persistent browser storage; URL-based media remains saved.');
+                    if (!window.__patchStorageWarningShown) {
+                        window.__patchStorageWarningShown = true;
+                        setTimeout(() => alert('Browser storage was full. Your Patch Archive data was saved, but locally uploaded image/video files were not kept after reload. For permanent media, use image/video URLs or move uploads to cloud storage.'), 50);
+                    }
+                    return false;
+                } catch (compactError) {
+                    console.error('Patch Archive could not save data after storage cleanup:', compactError);
+                    if (!window.__patchStorageWarningShown) {
+                        window.__patchStorageWarningShown = true;
+                        setTimeout(() => alert('Browser storage is full. Remove some old site data or uploaded media, then try again.'), 50);
+                    }
+                    return false;
+                }
+            }
         }
 
         function safeText(value) {
@@ -2639,6 +2745,9 @@
             document.getElementById('edit-prod-size').value=item.size||'';
             document.getElementById('edit-prod-condition').value=item.condition||'';
             document.getElementById('edit-prod-img').value=item.img||'';
+            document.getElementById('edit-prod-img-file').value='';
+            document.getElementById('edit-prod-img-source').value='url';
+            toggleEditImgSource();
             document.getElementById('edit-prod-desc').value=item.description||'';
             editingSubImages=Array.isArray(item.subImages)?[...item.subImages]:[];
             editingSubVideos=Array.isArray(item.subVideos)?[...item.subVideos]:[];
@@ -2656,6 +2765,14 @@
             try {
                 const type=document.getElementById('edit-prod-type').value;
                 const id=Number(document.getElementById('edit-prod-id').value);
+                const editImgMode=document.getElementById('edit-prod-img-source').value;
+                let updatedMainImg=document.getElementById('edit-prod-img').value.trim();
+                if (editImgMode === 'file') {
+                    const file=document.getElementById('edit-prod-img-file').files?.[0];
+                    if (file) {
+                        [updatedMainImg]=await readFilesAsDataUrls([file]);
+                    }
+                }
                 const updatedMedia=await collectEditSubMedia();
                 if(type==='product'){
                     const index=products.findIndex(p=>Number(p.id)===id);
@@ -2666,7 +2783,7 @@
                         products[index].price=Number(document.getElementById('edit-prod-price').value);
                         products[index].size=document.getElementById('edit-prod-size').value.trim();
                         products[index].condition=document.getElementById('edit-prod-condition').value.trim();
-                        products[index].img=document.getElementById('edit-prod-img').value.trim();
+                        if (updatedMainImg) products[index].img=updatedMainImg;
                         products[index].description=document.getElementById('edit-prod-desc').value.trim();
                         products[index].subImages=updatedMedia.images;
                         products[index].subVideos=updatedMedia.videos;
@@ -2681,7 +2798,7 @@
                         bids[index].highestBid=Number(document.getElementById('edit-prod-price').value);
                         bids[index].size=document.getElementById('edit-prod-size').value.trim();
                         bids[index].condition=document.getElementById('edit-prod-condition').value.trim();
-                        bids[index].img=document.getElementById('edit-prod-img').value.trim();
+                        if (updatedMainImg) bids[index].img=updatedMainImg;
                         bids[index].description=document.getElementById('edit-prod-desc').value.trim();
                         bids[index].subImages=updatedMedia.images;
                         bids[index].subVideos=updatedMedia.videos;
@@ -2750,6 +2867,22 @@
 
         function parseUrlLines(value) { return String(value||'').split(/\r?\n/).map(v=>v.trim()).filter(Boolean); }
 
+        function toggleBidImgSource() {
+            const mode = document.getElementById('bid-img-source')?.value || 'url';
+            const urlGroup = document.getElementById('bid-img-url-group');
+            const fileGroup = document.getElementById('bid-img-file-group');
+            if (urlGroup) urlGroup.style.display = mode === 'url' ? 'block' : 'none';
+            if (fileGroup) fileGroup.style.display = mode === 'file' ? 'block' : 'none';
+        }
+
+        function toggleEditImgSource() {
+            const mode = document.getElementById('edit-prod-img-source')?.value || 'url';
+            const urlGroup = document.getElementById('edit-img-url-group');
+            const fileGroup = document.getElementById('edit-img-file-group');
+            if (urlGroup) urlGroup.style.display = mode === 'url' ? 'block' : 'none';
+            if (fileGroup) fileGroup.style.display = mode === 'file' ? 'block' : 'none';
+        }
+
         document.getElementById('admin-product-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             try {
@@ -2761,8 +2894,7 @@
                     [mainImg]=await readFilesAsDataUrls([file]);
                 } else {
                     mainImg=document.getElementById('prod-img-url').value.trim();
-                    if(!mainImg) return alert('Please enter a main image URL.');
-                }
+                    }
                 const extraUrls=parseUrlLines(document.getElementById('prod-extra-urls').value);
                 const extraFiles=await readFilesAsDataUrls(document.getElementById('prod-extra-files').files);
                 const subImages=[...extraUrls,...extraFiles];
@@ -2782,7 +2914,16 @@
             e.preventDefault();
             try {
                 const startPrice=Number(document.getElementById('bid-start-price').value);
-                const mainImg=document.getElementById('bid-img-url').value.trim();
+                const bidImgMode=document.getElementById('bid-img-source').value;
+                let mainImg='';
+                if (bidImgMode === 'file') {
+                    const file=document.getElementById('bid-img-file').files?.[0];
+                    if (!file) return alert('Please select the main image file, or switch to URL and paste an image URL.');
+                    [mainImg]=await readFilesAsDataUrls([file]);
+                } else {
+                    mainImg=document.getElementById('bid-img-url').value.trim();
+                    if (!mainImg) return alert('Please paste an image URL, or switch to Upload Image File.');
+                }
                 const extraImages=parseUrlLines(document.getElementById('bid-extra-urls').value);
                 const imageFiles=await readFilesAsDataUrls(document.getElementById('bid-extra-files').files);
                 const videoUrls=parseUrlLines(document.getElementById('bid-video-urls').value);
@@ -3207,6 +3348,8 @@
         renderReceipts();
         renderAdminReceiptManagement();
         renderAnnouncement();
+        toggleBidImgSource();
+        toggleEditImgSource();
         renderConnect();
     </script>
 </body>
